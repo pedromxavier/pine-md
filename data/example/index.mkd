@@ -1,0 +1,10 @@
+html
+$   title = "Home"
+
+head
+/   head.mkd
+
+body
+/   nav.mkd
+§   Aqui vem um pouco do bom e velho markdown.
+/   footer.mkd
