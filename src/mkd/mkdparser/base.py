@@ -35,7 +35,7 @@ class Lexer(object):
     def __init__(self, source):
         self.source = source
 
-        self.lexer = lex.lex(object=self, reflags=self.RE_FLAGS)
+        self.lexer = lex.lex(object=self, reflags=self.RE_FLAGS, debug=False)
 
         # Errors
         self.error_stack = deque([])
@@ -81,7 +81,7 @@ class Parser(object):
 
         ## Lex & Yacc
         self.lexer = self.Lexer(self.source)
-        self.parser = yacc.yacc(module=self, debug=False, write_tables=False)
+        self.parser = yacc.yacc(module=self, debug=False)
 
         ## Indent
         self.indent = 0

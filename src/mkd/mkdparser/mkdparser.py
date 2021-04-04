@@ -18,6 +18,7 @@ from ..mkdlib import Source, track, trackable, TrackType
 from ..items import *  # pylint: disable=unused-wildcard-import
 
 from .base import Lexer, Parser, regex
+from .mdparser import mdParser
 
 class mkdLexer(Lexer):
 
@@ -29,7 +30,7 @@ class mkdLexer(Lexer):
         'LOAD',
         'ASSIGNMENT', 'NAME', 'STRING',
         'EQ',
-        'DIV_PUSH', 'DIV_POP', 'DIV_TAG', 'DIV_CLASS', 'DIV_ID'
+        'DIV_PUSH', 'DIV_POP', 'DIV_CLASS', 'DIV_ID'
     )
     @regex(r'\n')
     def t_LINE(self, t):
@@ -50,6 +51,15 @@ class mkdLexer(Lexer):
 
     @regex(r'^body$')
     def t_BODY(self, t):
+        return t
+
+    @regex(r'^\{[^\S\r\n]*([a-zA-Z0-9\_\-\+]*)')
+    def t_DIV_PUSH(self, t):
+        t.value = re.match(r'^\{[^\S\r\n]*([a-zA-Z0-9\_\-\+]*)', t.value, self.RE_FLAGS).group(1)
+        return t
+
+    @regex(r'^\}$')
+    def t_DIV_POP(self, t):
         return t
 
     @regex(r'^\@([a-z]+)[^\S\r\n]+([^\n]*)$')
@@ -85,19 +95,6 @@ class mkdLexer(Lexer):
         t.value = str(t.value[1:-1])
         return t
 
-    @regex(r'^\{')
-    def t_DIV_PUSH(self, t):
-        return t
-
-    @regex(r'^\}$')
-    def t_DIV_POP(self, t):
-        return t
-
-    @regex(r'\<[a-zA-Z0-9\_\-]+\>')
-    def t_DIV_TAG(self, t):
-        t.value = str(t.value[1:-1])
-        return t
-
     @regex(r'\.[a-zA-Z0-9\_\-]+')
     def t_DIV_CLASS(self, t):
         t.value = str(t.value[1:])
@@ -121,6 +118,13 @@ class mkdParser(Parser):
 
     Lexer = mkdLexer
     tokens = mkdLexer.tokens
+
+    def __init__(self, source: Source):
+        Parser.__init__(self, source)
+
+    def markdown(self, s: str):
+        md_parser = mdParser(Source.from_str(s))
+        return md_parser.parse(symbol_table=self.symbol_table)
 
     def p_start(self, p):
         """start : file"""
@@ -218,7 +222,7 @@ class mkdParser(Parser):
 
     def p_markdown(self, p):
         """markdown : MARKDOWN"""
-        p[0] = mdPlainText(p[1])
+        p[0] = self.markdown(p[1])
 
     def p_include(self, p):
         """include : INCLUDE"""
@@ -230,22 +234,17 @@ class mkdParser(Parser):
         p[0] = mdLoader(ref, key)
 
     def p_div(self, p):
-        """div : DIV_PUSH div_tag div_options LINE code DIV_POP
-               | DIV_PUSH div_options LINE code DIV_POP
+        """div : DIV_PUSH div_options LINE code DIV_POP
         """
-        if len(p) == 7:
-            Tag = mdTag.new(p[2])
-            tag = Tag(*p[5])
-            tag.update(p[3])
+        if p[1]:
+            Tag = mdTag.new(p[1])
+            tag = Tag(*p[4])
+            tag.update(p[2])
             p[0] = tag
-        elif len(p) == 6:
+        else:
             tag = mdDiv(*p[4])
             tag.update(p[2])
             p[0] = tag
-
-    def p_div_tag(self, p):
-        """div_tag : DIV_TAG"""
-        p[0] = p[1]
 
     def p_div_options(self, p):
         """div_options : div_options div_option

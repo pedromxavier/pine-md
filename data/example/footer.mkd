@@ -1,1 +1,3 @@
-§   &copy; Rio de Janeiro, 2021
+{   .footer
+§   &copy; Rio de Janeiro, $year <br>
+}

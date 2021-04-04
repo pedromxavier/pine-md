@@ -70,8 +70,8 @@ class mdType(object, metaclass=abc.ABCMeta):
         return None
 
     @classmethod
-    def escape(cls, text: str):
-        return html.escape(text, quote=True)
+    def escape(cls, text: str, quote: bool = False):
+        return html.escape(text, quote=quote)
 
 
 class mdNull(mdType):

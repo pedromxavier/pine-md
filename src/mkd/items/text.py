@@ -2,18 +2,20 @@ import abc
 
 from .base import mdType
 
-class mdText(mdType):
+class mdText(list, mdType):
     """"""
+
+    SEP = ''
 
     __inline__ = True
 
     def __init__(self, *content: tuple):
+        list.__init__(self, [c for c in content if c])
         mdType.__init__(self)
-        self.content = [c for c in content if c]
 
     @property
     def text(self):
-        return " ".join(c.html if isinstance(c, mdType) else str(c) for c in self.content)
+        return self.SEP.join(c.html if isinstance(c, mdType) else str(c) for c in self)
 
     def __str__(self):
         return self.text
@@ -23,7 +25,7 @@ class mdText(mdType):
 
     @property
     def html(self) -> str:
-        return self.escape(self.text)
+        return str(self.text)
 
 
 class mdPlainText(mdText):
@@ -49,7 +51,7 @@ class mdTextTag(mdType):
 
     @property
     def html(self) -> str:
-        return f"<{self.tag}{self.keys}> {self.text.html} </{self.tag}>"
+        return f"<{self.tag}{self.keys}>{self.text.html}</{self.tag}>"
 
 # Simple Text Elements
 class mdPar(mdTextTag):
@@ -72,6 +74,11 @@ class mdItalic(mdTextTag):
     @property
     def tag(self) -> str:
         return "i"
+
+class mdStrike(mdTextTag):
+    @property
+    def tag(self) -> str:
+        return "s"
 
 class mdDeleted(mdTextTag):
     @property
@@ -96,4 +103,4 @@ class mdScript(mdType):
 
     @property
     def html(self) -> str:
-        return f'<script type="text/javascript"> {self.code.html} </script>'
+        return f'<script type="text/javascript">{self.code.html}</script>'
