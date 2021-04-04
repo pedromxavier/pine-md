@@ -13,7 +13,7 @@ from ply import lex, yacc
 
 ## Local
 from ..error import mdSyntaxError, mdError
-from ..mkdlib import Source, track, trackable, TrackType
+from ..pinelib import Source, track, trackable, TrackType
 
 from ..items import *  # pylint: disable=unused-wildcard-import
 
@@ -209,7 +209,7 @@ class Parser(object):
         if path.suffix == ".html":
             with open(path, mode="r") as file:
                 return mdRawHTML(file.read())
-        elif path.suffix == ".mkd" or path.suffix == ".md":
+        elif path.suffix == ".pine" or path.suffix == ".md":
             subparser = self.__class__(Source(path))
             return subparser.parse(ensure_html=False, symbol_table=self.symbol_table)
         else:

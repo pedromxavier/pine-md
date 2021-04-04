@@ -5,11 +5,11 @@ from pathlib import Path
 from cstream import stderr, stdlog, stdwar, stdout
 
 # Local
-from .mkdlib import Source
-from .mkdparser import mkdParser
+from .pinelib import Source
+from .pineparser import pineParser
 
 
-class mkd:
+class pine:
     """"""
 
     def __init__(self, fname: str):
@@ -21,7 +21,7 @@ class mkd:
             exit(1)
 
         self.source = Source(self.fname)
-        self.parser = mkdParser(self.source)
+        self.parser = pineParser(self.source)
 
     def parse(self, *, ensure_html: bool=True):
         return self.parser.parse(ensure_html=ensure_html)

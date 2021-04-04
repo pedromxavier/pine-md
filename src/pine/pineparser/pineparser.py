@@ -13,14 +13,14 @@ from ply import lex, yacc
 
 ## Local
 from ..error import mdSyntaxError, mdError
-from ..mkdlib import Source, track, trackable, TrackType
+from ..pinelib import Source, track, trackable, TrackType
 
 from ..items import *  # pylint: disable=unused-wildcard-import
 
 from .base import Lexer, Parser, regex
 from .mdparser import mdParser
 
-class mkdLexer(Lexer):
+class pineLexer(Lexer):
 
     ## List of token names.
     tokens = (
@@ -114,10 +114,10 @@ class mkdLexer(Lexer):
     
     
 
-class mkdParser(Parser):
+class pineParser(Parser):
 
-    Lexer = mkdLexer
-    tokens = mkdLexer.tokens
+    Lexer = pineLexer
+    tokens = pineLexer.tokens
 
     def __init__(self, source: Source):
         Parser.__init__(self, source)

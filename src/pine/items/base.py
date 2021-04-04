@@ -2,7 +2,7 @@
 import abc
 import html
 
-from ..mkdlib import trackable
+from ..pinelib import trackable
 
 
 @trackable
