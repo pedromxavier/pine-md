@@ -1,7 +1,7 @@
 #   Nav File
 
-{   .nav .inner #navbar
-§   [./home](Home)
-§   [./blog](Blog)
-§   [./about](About)
+{   .nav
+    -   [./home](Home)
+    -   [./blog](Blog)
+    -   [./about](About)
 }

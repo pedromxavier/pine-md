@@ -32,6 +32,7 @@ class pineLexer(Lexer):
         'EQ',
         'DIV_PUSH', 'DIV_POP', 'DIV_CLASS', 'DIV_ID'
     )
+
     @regex(r'\n')
     def t_LINE(self, t):
         self.lexer.lineno += 1
@@ -53,41 +54,39 @@ class pineLexer(Lexer):
     def t_BODY(self, t):
         return t
 
-    @regex(r'^\{[^\S\r\n]*([a-zA-Z0-9\_\-\+]*)')
+    RE_DIV_PUSH = r'^[^\S\r\n]*\{[^\S\r\n]*([a-zA-Z0-9\_\-\+]*)'
+    @regex(RE_DIV_PUSH)
     def t_DIV_PUSH(self, t):
-        t.value = re.match(r'^\{[^\S\r\n]*([a-zA-Z0-9\_\-\+]*)', t.value, self.RE_FLAGS).group(1)
+        t.value = re.match(self.RE_DIV_PUSH, t.value, self.RE_FLAGS).group(1).strip('\t ')
         return t
 
-    @regex(r'^\}$')
+    @regex(r'^[^\S\r\n]*\}[^\S\r\n]*$')
     def t_DIV_POP(self, t):
+        t.value = r'\}'
         return t
 
-    @regex(r'^\@([a-z]+)[^\S\r\n]+([^\n]*)$')
+    RE_LOAD = r'^\@([a-z]+)[^\S\r\n]+([^\r\n]+)$'
+    @regex(RE_LOAD)
     def t_LOAD(self, t):
-        m = re.match(r'^\@([a-z]+)[^\S\r\n]+([^\n]*)$', t.value, self.RE_FLAGS)
+        m = re.match(self.RE_LOAD, t.value, self.RE_FLAGS)
         t.value = (m.group(2), m.group(1))
         return t
 
-    @regex(r'^\§(\t|[ ]{3})[^\r\n]*$')
-    def t_MARKDOWN(self, t):
-        s = str(t.value[1:])
-        if s[0] == '\t':
-            t.value = s[1:]
-        else:
-            t.value = s[3:]
-        return t
-
-    @regex(r'^\/(\t|[ ]{3})[^\r\n]*$')
+    RE_INCLUDE = r'^\/(\t|[ ]{3})[^\S\r\n]*([^\r\n]+)$'
+    @regex(RE_INCLUDE)
     def t_INCLUDE(self, t):
-        s = str(t.value[1:])
-        if s[0] == '\t':
-            t.value = s[1:]
-        else:
-            t.value = s[3:]
+        t.value = re.match(self.RE_INCLUDE, t.value, self.RE_FLAGS).group(2).strip('\t ')
         return t
 
     @regex(r'^\$(\t|[ ]{3})')
     def t_ASSIGNMENT(self, t):
+        t.value = r'\$'
+        return t
+
+    RE_MARKDOWN = r'^(\t|[ ]{4})[^\S\r\n]*([^\r\n]+)$'
+    @regex(RE_MARKDOWN)
+    def t_MARKDOWN(self, t):
+        t.value = re.match(self.RE_MARKDOWN, t.value, self.RE_FLAGS).group(2).strip('\t ')
         return t
 
     @regex(r'\"[^\"\r\n]*\"|\'[^\'\r\n]*\'')
@@ -109,10 +108,11 @@ class pineLexer(Lexer):
     def t_NAME(self, t):
         return t
 
+    @regex(r'[ ]')
+    def t_SPACE(self, t):
+        return None
+
     t_EQ = r'\='
-    t_ignore = ' '
-    
-    
 
 class pineParser(Parser):
 
@@ -156,7 +156,7 @@ class pineParser(Parser):
                 else:
                     p[0] = mdContents(*p[1])
 
-    def p_html_code(self, p):
+    def p_html_block(self, p):
         """html : HTML LINE code head body
                 | HTML LINE code head
                 | HTML LINE code
@@ -187,28 +187,65 @@ class pineParser(Parser):
         p[0] = mdBody(*p[3])
 
     def p_code(self, p):
-        """code : code codeline
-                | codeline
+        """code : code block
+                | block
+                
+        """
+        if len(p) == 3:
+            p[1].append(p[2])
+            p[0] = p[1]
+        elif len(p) == 2:
+            p[0] = mdContents(p[1])
+
+    def p_block_markdown(self, p):
+        """block : markdown_block LINE
+                 | markdown_block
+        """
+        p[0] = self.markdown(str(p[1]))
+
+    def p_markdown_block(self, p):
+        """markdown_block : markdown_block markdown_line
+                          | markdown_line
+        """
+        if len(p) == 3:
+            p[1].append(p[2])
+            p[0] = (p[1])
+        else:
+            p[0] = mdBlock(p[1])
+
+    def p_markdown_line(self, p):
+        """markdown_line : MARKDOWN LINE
+                         | MARKDOWN
+        """
+        p[0] = p[1]
+
+    def p_block_pinecode(self, p):
+        """block : pinecode_block
+        """
+        p[0] = p[1]
+
+    def p_pinecode_block(self, p):
+        """pinecode_block : pinecode_block pinecode_line
+                          | pinecode_line
         """
         if len(p) == 3:
             p[1].append(p[2])
             p[0] = p[1]
         else:
-            p[0] = mdContents(p[1])
-    
-    def p_codeline(self, p):
-        """codeline : content LINE
-                    | content
+            p[0] = mdBlock(p[1])
+
+    def p_pinecode_line(self, p):
+        """pinecode_line : pinecode LINE
+                         | pinecode
         """
         p[0] = p[1]
         
-    def p_content(self, p):
-        """content : assignment
-                   | markdown
-                   | include
-                   | load
-                   | div
-                   |
+    def p_pinecode(self, p):
+        """pinecode : assignment
+                    | include
+                    | load
+                    | div
+                    |
         """
         if len(p) == 2:
             p[0] = p[1]
@@ -218,11 +255,7 @@ class pineParser(Parser):
     def p_assignment(self, p):
         """assignment : ASSIGNMENT NAME EQ STRING"""
         self.set_var(p[2], p[4])
-        return mdNull()
-
-    def p_markdown(self, p):
-        """markdown : MARKDOWN"""
-        p[0] = self.markdown(p[1])
+        p[0] = mdNull()
 
     def p_include(self, p):
         """include : INCLUDE"""
@@ -234,7 +267,7 @@ class pineParser(Parser):
         p[0] = mdLoader(ref, key)
 
     def p_div(self, p):
-        """div : DIV_PUSH div_options LINE code DIV_POP
+        """div : DIV_PUSH div_options LINE block DIV_POP
         """
         if p[1]:
             Tag = mdTag.new(p[1])

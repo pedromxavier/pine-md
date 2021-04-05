@@ -2,16 +2,15 @@ import abc
 
 from .base import mdType
 
-class mdText(list, mdType):
+class mdText(mdType):
     """"""
 
     SEP = ''
 
     __inline__ = True
 
-    def __init__(self, *content: tuple):
-        list.__init__(self, [c for c in content if c])
-        mdType.__init__(self)
+    def __bool__(self) -> bool:
+        return len(self.text) > 0
 
     @property
     def text(self):
@@ -27,6 +26,16 @@ class mdText(list, mdType):
     def html(self) -> str:
         return str(self.text)
 
+class mdBlock(mdText):
+
+    __inline__ = False
+
+    SEP = '\n'
+
+    @property
+    def text(self):
+        return f"{self.SEP}{self.pad}".join(c.html if isinstance(c, mdType) else str(c) for c in self)
+
 
 class mdPlainText(mdText):
     """"""
@@ -36,14 +45,10 @@ class mdPlainText(mdText):
         return str(self.text)
 
 
-class mdTextTag(mdType):
+class mdTextTag(mdText):
     """"""
 
     __inline__ = True
-
-    def __init__(self, text: mdText):
-        mdType.__init__(self)
-        self.text = text
 
     @abc.abstractproperty
     def tag(self) -> str:
@@ -51,7 +56,7 @@ class mdTextTag(mdType):
 
     @property
     def html(self) -> str:
-        return f"<{self.tag}{self.keys}>{self.text.html}</{self.tag}>"
+        return f"<{self.tag}{self.keys}>{self.text}</{self.tag}>"
 
 # Simple Text Elements
 class mdPar(mdTextTag):
@@ -98,9 +103,7 @@ class mdCode(mdTextTag):
         return 'code'
 
 class mdScript(mdType):
-    def __init__(self, code: mdCode):
-        self.code = code
 
     @property
     def html(self) -> str:
-        return f'<script type="text/javascript">{self.code.html}</script>'
+        raise NotImplementedError('Implement me.')

@@ -57,9 +57,8 @@ class Lexer(object):
             self.interrupt()
 
     def t_error(self, t):
-        stderr << f"Unknown token '{t.value}' at line {t.lineno}"
         if t:
-            stderr << f"Syntax Error at line {t.lineno}:"
+            stderr << f"Unknown token '{t.value}' at line {t.lineno}"
             stderr << self.source.lines[t.lineno - 1]
             stderr << f'{" " * (self.chrpos(t.lineno, t.lexpos))}^'
         else:
@@ -133,11 +132,18 @@ class Parser(object):
 
     def test(self):
         self.lexer.lexer.input(self.source)
+        stdlog[0] << f">{self.__class__.__name__}@{self.source.fname}"
         while True:
             tok = self.lexer.lexer.token()
             if not tok:
                 break
             stdlog[0] << tok
+            if tok.type == 'INCLUDE':
+                path = Path(str(tok.value))
+                if path.exists() and path.is_file() and path.suffix == '.md':
+                    subparser = self.__class__(Source(path))
+                    subparser.test()
+        stdlog[0] << f"<{self.__class__.__name__}@{self.source.fname}"
 
     def retrieve(self, output: object):
         self.output = output

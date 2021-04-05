@@ -15,8 +15,12 @@ class mdType(object, metaclass=abc.ABCMeta):
 
     __data__ = {"stack": 0}
 
-    def __init__(self):
+    def __init__(self, *child: tuple):
         self._data = {"id": "", "class": ""}
+        self.child = list(child)
+
+    def __iter__(self):
+        return iter(c for c in self.child if c)
 
     def __getitem__(self, key: str):
         return self._data[key]
@@ -24,12 +28,21 @@ class mdType(object, metaclass=abc.ABCMeta):
     def __setitem__(self, key: str, value: object):
         self._data[key] = value
 
+    def append(self, c: object):
+        self.child.append(c)
+
     def update(self, d: dict):
         for key, value in d.items():
             self._data[key] = value
 
     def __bool__(self) -> bool:
         return True
+
+    def __len__(self) -> int:
+        return len(self.child)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(\n*{', '.join([repr(c) for c in self.child])})"
 
     @property
     def pad(self):
@@ -65,10 +78,6 @@ class mdType(object, metaclass=abc.ABCMeta):
     def html(self) -> str:
         pass
 
-    @property
-    def child(self) -> list:
-        return None
-
     @classmethod
     def escape(cls, text: str, quote: bool = False):
         return html.escape(text, quote=quote)
@@ -94,21 +103,9 @@ class mdNull(mdType):
     def html(self) -> str:
         return str()
 
-
-class mdContents(list, mdType):
+class mdContents(mdType):
     """"""
-
-    def __init__(self, *contents: tuple):
-        list.__init__(self, [c for c in contents if c])
-        mdType.__init__(self)
-
-    def __bool__(self):
-        return bool(len(self) > 0)
 
     @property
     def html(self):
         return f"\n{self.pad}".join(f"{c.html}" for c in self)
-
-    @property
-    def child(self) -> list:
-        return list(self)

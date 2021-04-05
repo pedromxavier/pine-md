@@ -8,9 +8,8 @@ class mdTag(mdType):
 
     __tags__ = {}
 
-    def __init__(self, *content: tuple):
-        mdType.__init__(self)
-        self.content = [c for c in content if c]
+    def __bool__(self) -> bool:
+        return True
 
     @classmethod
     def new(cls, tag: str) -> type:
@@ -32,15 +31,15 @@ class mdTag(mdType):
             return "\n".join(
                 [
                     f"<{self.tag}{self.keys}>{self.push}",
-                    *[f"{self.pad}{c.html}" for c in self.content],
+                    *[f"{self.pad}{c.html}" for c in self],
                     f"{self.pop}{self.pad}</{self.tag}>",
                 ]
             )
         else:
-            return " ".join(
+            return "".join(
                 [
                     f"<{self.tag}{self.keys}>",
-                    *[f"{c.html}" for c in self.content],
+                    *[f"{c.html}" for c in self],
                     f"</{self.tag}>",
                 ]
             )

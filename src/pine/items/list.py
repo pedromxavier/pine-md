@@ -1,15 +1,15 @@
 import abc
 
+from cstream import stderr
+
 from .base import mdType
 from .tags import mdTag
 
 # Lists
-class mdList(list, mdType):
+class mdList(mdType):
     """"""
 
-    def __init__(self, *content: tuple):
-        list.__init__(self, content)
-        mdType.__init__(self)
+    __inline__ = False
 
     @abc.abstractproperty
     def tag(self) -> str:
@@ -24,11 +24,6 @@ class mdList(list, mdType):
                 f"{self.pop}{self.pad}</{self.tag}>",
             ]
         )
-
-    @property
-    def child(self) -> list:
-        return list(self)
-
 
 class mdUList(mdList):
     """"""

@@ -1,6 +1,6 @@
 import abc
 
-from cstream import stdwar
+from cstream import stdwar, stderr
 
 from .base import mdType
 from .text import mdText
@@ -11,23 +11,21 @@ class mdRawHTML(mdType):
     """"""
 
     def __init__(self, text: str):
+        mdType.__init__(self)
         self.text = text
+
+    def __bool__(self) -> bool:
+        return len(self.text) > 0
 
     @property
     def html(self):
         return self.text
 
-    @property
-    def child(self) -> list:
-        return None
-
-
 class mdHTML(mdType):
     """"""
 
-    def __init__(self, *content: tuple):
-        mdType.__init__(self)
-        self.content = [c for c in content if c]
+    def __bool__(self) -> bool:
+        return True
 
     @property
     def meta(self) -> str:
@@ -38,8 +36,8 @@ class mdHTML(mdType):
         return "\n".join(
             [
                 f"{self.meta}",
-                f"<html>{self.push}",
-                *[f"{self.pad}{c.html}" for c in self.content],
+                f"<html{self.keys}>{self.push}",
+                *[f"{self.pad}{c.html}" for c in self],
                 f"{self.pop}{self.pad}</html>",
             ]
         )
@@ -48,6 +46,9 @@ class mdHTML(mdType):
 class mdHead(mdTag):
     """"""
 
+    def __bool__(self) -> bool:
+        return True
+
     @property
     def tag(self):
         return f"head"
@@ -55,6 +56,9 @@ class mdHead(mdTag):
 
 class mdBody(mdTag):
     """"""
+
+    def __bool__(self) -> bool:
+        return True
 
     @property
     def tag(self):
@@ -120,19 +124,20 @@ class mdLink(mdType):
     """"""
 
     def __init__(self, ref: mdText, text: mdText):
+        mdType.__init__(self)
         self.ref = ref
         self.text = text
 
     @property
     def html(self) -> str:
-        return f'<a href="{self.ref.html}"> {self.text.html} </a>'
+        return f'<a href="{self.ref.html}"{self.keys}>{self.text.html}</a>'
 
 class mdXLink(mdLink):
     """"""
 
     @property
     def html(self) -> str:
-        return f'<a href="{self.ref.html}" target="_blank" rel="noopener noreferrer"> {self.text.html} </a>'
+        return f'<a href="{self.ref.html}" target="_blank" rel="noopener noreferrer"{self.keys}>{self.text.html}</a>'
 
 class mdLoader(mdType):
     """"""
@@ -141,6 +146,9 @@ class mdLoader(mdType):
         mdType.__init__(self)
         self.ref = ref
         self.key = key
+
+    def __bool__(self) -> bool:
+        return True
 
     @property
     def html(self) -> str:
