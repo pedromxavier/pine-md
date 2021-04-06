@@ -1,6 +1,6 @@
 import abc
 
-from cstream import stderr
+from cstream import stderr, stdwar
 
 from .base import mdType
 from .tags import mdTag

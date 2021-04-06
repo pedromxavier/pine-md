@@ -132,7 +132,7 @@ class Parser(object):
 
     def test(self):
         self.lexer.lexer.input(self.source)
-        stdlog[0] << f">{self.__class__.__name__}@{self.source.fname}"
+        stdlog[0] << f"PUSH> @{self.source.fname}"
         while True:
             tok = self.lexer.lexer.token()
             if not tok:
@@ -143,7 +143,7 @@ class Parser(object):
                 if path.exists() and path.is_file() and path.suffix == '.md':
                     subparser = self.__class__(Source(path))
                     subparser.test()
-        stdlog[0] << f"<{self.__class__.__name__}@{self.source.fname}"
+        stdlog[0] << f" <POP @{self.source.fname}"
 
     def retrieve(self, output: object):
         self.output = output
@@ -172,7 +172,7 @@ class Parser(object):
         return value
 
     def p_error(self, t):
-        stderr[3] << f"Error Token: '{t}'"
+        # stderr[3] << f"Error Token: '{t}'"
         target = TrackType()
         if t:
             target.lexinfo = {

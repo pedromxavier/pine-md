@@ -10,6 +10,8 @@ from ..pine import pine
 
 stdpine = Stream(fg="GREEN", sty="DIM")
 
+_output = ""
+
 class PineArgumentParser(argparse.ArgumentParser):
 
     def print_help(self, from_help: bool=True):
@@ -22,6 +24,8 @@ class PineArgumentParser(argparse.ArgumentParser):
         exit(1)
 
 def main():
+
+    global _output
     
     args: argparse.Namespace = parse()
 
@@ -46,8 +50,20 @@ def main():
         stdout[0] << output
 
     if args.debug:
-        stdlog[0] << repr(t)
+        stdlog[0] << t.tree
         stdlog[0] << p.parser.symbol_table
+
+        while True:
+            try:
+                _output = ""
+                s = input(">>> ")
+                if not s:
+                    break
+                else:
+                    exec(f"_output={s}", globals(), locals())
+                    stdlog[0] << _output
+            except Exception as err:
+                stderr[0] << err.args
 
     exit(0)
 

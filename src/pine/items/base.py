@@ -42,7 +42,7 @@ class mdType(object, metaclass=abc.ABCMeta):
         return len(self.child)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(\n*{', '.join([repr(c) for c in self.child])})"
+        return f"{self.__class__.__name__}"
 
     @property
     def pad(self):
@@ -81,6 +81,13 @@ class mdType(object, metaclass=abc.ABCMeta):
     @classmethod
     def escape(cls, text: str, quote: bool = False):
         return html.escape(text, quote=quote)
+
+    @property
+    def tree(self) -> list:
+        if not self.child:
+            return (self, None)
+        else:
+            return (self, [c.tree for c in self.child if isinstance(c, mdType)])
 
 
 class mdNull(mdType):
