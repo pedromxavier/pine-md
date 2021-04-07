@@ -17,7 +17,7 @@ class Pine(object):
         Source code path
     """
 
-    def __init__(self, fname: str):
+    def __init__(self, fname: str, *,  parser: str = None):
         """"""
         self.fname = Path(fname).absolute()
 
@@ -26,6 +26,9 @@ class Pine(object):
             exit(1)
 
         self.source = Source(fname=self.fname)
+            
+        if parser == "EXPERIMENTAL":
+            from .pineparser.exparser import pineLexer as pineParser
         self.parser = pineParser(self.source)
 
     def parse(self, *, ensure_html: bool=True):

@@ -294,15 +294,20 @@ class pineLexer:
         # ---------------------------------
     }
 
-    def __init__(self, source: Source):
+    def __init__(self, source: Source, *, ensure_html: bool=False):
+        self.ensure_html = bool(ensure_html)
         self.source = source
         self.states = self.compile_states()
     
         self.flags = {}
         self.stack = []
 
-    def parse(self):
+    def test(self, *args, **kwargs):
+        ...
+
+    def parse(self, *, ensure_html: bool=False):
         """"""
+        self.ensure_html = bool(ensure_html)
         queue = list(reversed(self.source))
         regex: re.Pattern
 
