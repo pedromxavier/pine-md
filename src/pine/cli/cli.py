@@ -76,6 +76,8 @@ def main():
         stdout[0] << html
 
     if args.debug:
+        global get_state
+        get_state = pine.parser.state.get_state
         repl(globals(), locals())
 
     exit(0)

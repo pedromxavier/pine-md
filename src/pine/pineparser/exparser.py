@@ -160,8 +160,6 @@ class pineLexer:
     MD_TEXT_B = state("MD_TEXT_B")
     MD_TEXT_C = state("MD_TEXT_C")
     MD_TEXT_S = state("MD_TEXT_S")
-    ### ESCAPE
-    MD_ESCAPE = state("MD_ESCAPE")
     ### ------------------------
 
     # MARKDOWN -------------------
@@ -192,7 +190,9 @@ class pineLexer:
             r"\`": MD_TEXT_C,
             r"\[": MD_LINK_LOAD_PUSH,
             r"\]": MD_LINK_LOAD_POP,
+            r"\)": MD_LINK_POP,
             r"\$": MD_TEXT_VAR,
+            r"\\": MD_TEXT_ESCAPE,
             r"[^\S\r\n]": MARKDOWN,
             r"[^\r\n]": MD_TEXT,
             r"[\r\n]": NEW_LINE,
@@ -203,8 +203,8 @@ class pineLexer:
             r"\-": MD_ULIST,
             r"\+": MD_OLIST,
             r"\#": MD_HEADER,
+            r"[^\s\r\n]": MARKDOWN,
             r"[^\S\r\n]": INDENT,
-            r"[^\r\n]": INDENT,
             r"[\r\n]": NEW_LINE,
         },
         INDENT_0: {
@@ -285,7 +285,11 @@ class pineLexer:
         },
         PINE_INC_QUOTE_TEXT: {
             r"\'": PINE_INC_QUOTE_1,
+            r"\\": PINE_INC_QUOTE_TEXT_ESCAPE,
             r"[^\r\n]": PINE_INC_QUOTE_TEXT,
+        },
+        PINE_INC_QUOTE_TEXT_ESCAPE: {
+            r"\'": PINE_INC_QUOTE_TEXT,
         },
         PINE_INC_QUOTE_1: {
             r"[^\S\r\n]": SKIP,
@@ -297,7 +301,11 @@ class pineLexer:
         },
         PINE_INC_DOUBLEQUOTE_TEXT: {
             r"\"": PINE_INC_DOUBLEQUOTE_1,
+            r"\\": PINE_INC_DOUBLEQUOTE_TEXT_ESCAPE,
             r"[^\r\n]": PINE_INC_DOUBLEQUOTE_TEXT,
+        },
+        PINE_INC_DOUBLEQUOTE_TEXT_ESCAPE: {
+            r"\"": PINE_INC_DOUBLEQUOTE_TEXT,
         },
         PINE_INC_DOUBLEQUOTE_1: {
             r"[^\S\r\n]": SKIP,
@@ -368,6 +376,8 @@ class pineLexer:
         MD_DIV_HEADER_SKIP_0: {
             r"[\r\n]": NEW_LINE,
             r"[a-zA-Z]": MD_DIV_HEADER_TAG,
+            r"\#": MD_DIV_HEADER_ID,
+            r"\.": MD_DIV_HEADER_CLASS,
             r"[^\S\r\n]": MD_DIV_HEADER_SKIP_0,
         },
         MD_DIV_HEADER_TAG: {
@@ -427,24 +437,53 @@ class pineLexer:
         MD_HEADER_NUMBER: {
             r"[^\S\r\n]": MARKDOWN,
         },
-        MD_TEXT: {},
+        MD_TEXT: {
+            None: MARKDOWN,
+        },
+        MD_TEXT_ESCAPE: {
+            r"[\\\_\~\*\`\[\]\(\)]": MARKDOWN,
+        },
         MD_LINK_LOAD_PUSH: {
             r"\]": MD_LINK_LOAD_POP,
-            r"\\": MD_LINK_LOAD_HREF_ESCAPE,
             r"[^\r\n\[\]]": MD_LINK_LOAD_HREF,
+            r"\\": MD_LINK_LOAD_HREF_ESCAPE,
         },
-        MD_LINK_LOAD_HREF: {},
-        MD_LINK_LOAD_POP: {},
-        MD_LINK_STAR: {},
-        MD_LINK_PUSH: {},
-        MD_LINK_POP: {},
-        MD_LOAD: {},
-        MD_LOAD_TYPE: {},
+        MD_LINK_LOAD_HREF: {
+            r"\]": MD_LINK_LOAD_POP,
+            r"[^\r\n\[\]]": MD_LINK_LOAD_HREF,
+            r"\\": MD_LINK_LOAD_HREF_ESCAPE,
+        },
+        MD_LINK_LOAD_HREF_ESCAPE: {
+            r"[\\\[\]]": MD_LINK_LOAD_HREF,
+        },
+        MD_LINK_LOAD_POP: {
+            r"\@": MD_LOAD,
+            r"\*": MD_LINK_STAR,
+            r"\(": MD_LINK_PUSH,
+        },
+        MD_LINK_STAR: {
+            r"\(": MD_LINK_PUSH,
+        },
+        MD_LINK_PUSH: {
+            None: MARKDOWN,
+        },
+        MD_LINK_POP: {
+            None: MARKDOWN,
+        },
+        MD_LOAD: {
+            None: MD_LOAD_TYPE,
+        },
+        MD_LOAD_TYPE: {
+            r"[a-zA-Z]": MD_LOAD_TYPE,
+            r"[^\S\r\n]": MARKDOWN,
+            r"[\r\n]": NEW_LINE,
+        },
         MD_TEXT_VAR: {
             r"[a-zA-Z\_]": MD_TEXT_VARNAME,
         },
         MD_TEXT_VARNAME: {
             r"[a-zA-Z\_]": MD_TEXT_VARNAME,
+            r"[^\s\r\na-zA-Z\_]" : MARKDOWN,
             r"[^\S\r\n]": MARKDOWN,
             r"[\r\n]": NEW_LINE,
         },
@@ -459,9 +498,6 @@ class pineLexer:
         },
         MD_TEXT_S: {
             None: MARKDOWN,
-        },
-        MD_ESCAPE: {
-            r"[\\\_\~\*\`\[\]\(\)]": MARKDOWN,
         },
     }
 
