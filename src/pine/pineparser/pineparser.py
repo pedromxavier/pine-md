@@ -49,6 +49,7 @@ class pineLexer(Lexer):
         "NAME",
         "WORD",
         "SPACE",
+        "STRING",
         "ESCAPE",
         "LPAR",
         "RPAR",
@@ -158,7 +159,11 @@ class pineLexer(Lexer):
     RE_ESCAPE = r"|".join(map(lambda c, e=ESCAPE_CHAR: f"{e}{c}", ESCAPE))
 
     # Names and Words
-    @regex(r"\b[a-zA-Z][a-zA-Z0-9]*\b")
+    @regex(r"\"[^\"\r\n]*\"|\'[^\'\r\n]*\'")
+    def t_STRING(self, t):
+        return t
+
+    @regex(r"\b[a-zA-Z][a-zA-Z0-9\-]*\b")
     def t_NAME(self, t):
         return t
 
@@ -285,12 +290,12 @@ class pineParser(Parser):
             p[0] = None
 
     def p_div_options(self, p):
-        """div_options : div_options div_option
+        """div_options : div_options space div_option
                        | div_option
                        |
         """
-        if len(p) == 3:
-            k, v = p[2]
+        if len(p) == 4:
+            k, v = p[3]
             if k in p[1]:
                 p[1][k] = f"{p[1][k]} {v}"
             else:
@@ -342,13 +347,13 @@ class pineParser(Parser):
             p[0] = mdNull()
 
     def p_pine_assignment(self, p):
-        """pine_assignment : PINE_VAR space NAME space EQUAL space QUOTE text QUOTE"""
-        self.set_var(p[3], p[8])
+        """pine_assignment : PINE_VAR space NAME space EQUAL space STRING"""
+        self.set_var(p[3], str(p[7][1:-1]))
         p[0] = mdNull()
 
     def p_pine_include(self, p):
-        """pine_include : PINE_INCLUDE space QUOTE text QUOTE"""
-        p[0] = self.include(str(p[4]))
+        """pine_include : PINE_INCLUDE space STRING"""
+        p[0] = self.include(str(p[3][1:-1]))
 
     # Markdown
     def p_block_markdown(self, p):
@@ -393,6 +398,19 @@ class pineParser(Parser):
             p[0] = p[1]
         else:
             p[0] = mdNull()
+
+    def p_mark(self, p):
+        """mark : DOT
+                | HASH
+                | DASH
+                | PLUS
+                | RCUR
+                | LCUR
+                | LPAR
+                | RPAR
+                | EQUAL
+        """
+        p[0] = p[1]
 
     def p_effect_italic(self, p):
         """effect : UNDER space markdown_element space UNDER"""
@@ -443,16 +461,6 @@ class pineParser(Parser):
         """
         p[0] = mdText(p[1])
 
-    def p_mark(self, p):
-        """mark : DOT
-        | HASH
-        | DASH
-        | PLUS
-        | EQUAL
-        | QUOTE
-        """
-        p[0] = p[1]
-
     def p_word_var(self, p):
         """word : DOLL NAME"""
         p[0] = self.get_var(p[2])
@@ -461,6 +469,7 @@ class pineParser(Parser):
     # Lists
     def p_list_block(self, p):
         """block : ulist_block
+                 | olist_block
         """
         p[0] = mdBlock(p[1])
 
@@ -477,6 +486,22 @@ class pineParser(Parser):
     def p_ulist_item(self, p):
         """ulist_line : ULIST_INDENT space markdown space LINE
                       | ULIST_INDENT space markdown space
+        """
+        p[0] = mdListItem(p[3])
+
+    def p_olist_block(self, p):
+        """olist_block : olist_block olist_line
+                       | olist_line
+        """
+        if len(p) == 3:
+            p[1].append(p[2])
+            p[0] = p[1]
+        else:
+            p[0] = mdOList(p[1])
+
+    def p_olist_item(self, p):
+        """olist_line : OLIST_INDENT space markdown space LINE
+                      | OLIST_INDENT space markdown space
         """
         p[0] = mdListItem(p[3])
 

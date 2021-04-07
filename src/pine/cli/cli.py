@@ -6,7 +6,7 @@ from pathlib import Path
 from cstream import Stream, stdout, stdlog, stderr
 
 from .banner import PINE_BANNER
-from ..pine import pine
+from ..pine import Pine
 
 stdpine = Stream(fg="GREEN", sty="DIM")
 
@@ -24,60 +24,49 @@ class PineArgumentParser(argparse.ArgumentParser):
         exit(1)
 
 def main():
+    """"""
 
-    global _output
-    
-    args: argparse.Namespace = parse()
-
-    p = pine(args.source)
-
-    if args.tokens:
-        stdout[0] << p.tokens()
-        exit(0)
-
-    t = p.parse(ensure_html=args.html)
-
-    output: str = t.html
-
-    if args.output:
-        path = Path(args.output)
-        if not path.exists() or not path.is_file():
-            stderr[0] << f"Invalid output file {path}"
-            exit(1)
-        with open(path, mode='w', encoding='utf-8') as file:
-            file.write(output)
-    else:
-        stdout[0] << output
-
-    if args.debug:
-        stdlog[0] << t.tree
-        stdlog[0] << p.parser.symbol_table
-
-        while True:
-            try:
-                _output = ""
-                s = input(">>> ")
-                if not s:
-                    break
-                else:
-                    exec(f"_output={s}", globals(), locals())
-                    stdlog[0] << _output
-            except Exception as err:
-                stderr[0] << err.args
-
-    exit(0)
-
-def parse() -> argparse.Namespace:
+    ## Argument Parser Definition
     params = {"description": __doc__}
     
     parser = PineArgumentParser(**params)
     parser.add_argument("source", type=str, action="store", help="Source file.")
-
     parser.add_argument('-o', '--output', type=str, action="store", help="Output file path. Ensures HTML UTF-8 encoding.")
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("--html", action="store_true", help="Ensures HTML output.")
-    group.add_argument("--tokens", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument('-v', '--verbose', type=int, choices=range(4), default=0, help="Output verbosity.")
+    parser.add_argument("--html", action="store_true", help="Ensures HTML output.")
     parser.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
     
-    return parser.parse_args()
+    ## Parse Arguments
+    args = parser.parse_args()
+
+    if args.debug:
+        Stream.set_lvl(3)
+    else:
+        Stream.set_lvl(args.verbose)
+
+    path = Path(args.source)
+
+    if not path.exists() or not path.is_file():
+        stderr[0] << f"Invalid File Path: '{args.source}'."
+        exit(1)
+
+    pine = Pine(path)
+    tree = pine.parse(ensure_html=args.html)
+
+    html: str = tree.html
+
+    if args.output:
+        path = Path(args.output)
+        if not path.exists() or not path.is_file():
+            stderr[0] << f"Invalid output file '{path}'."
+            exit(1)
+        with open(path, mode='w', encoding='utf-8') as file:
+            file.write(html)
+    else:
+        stdout[0] << html
+
+    if args.debug:
+        stdlog[0] << tree.tree
+        stdlog[0] << pine.parser.symbol_table
+
+    exit(0)

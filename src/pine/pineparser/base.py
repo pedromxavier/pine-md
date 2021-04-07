@@ -141,7 +141,7 @@ class Parser(object):
             if tok.type == 'INCLUDE':
                 path = Path(str(tok.value))
                 if path.exists() and path.is_file() and path.suffix == '.md':
-                    subparser = self.__class__(Source(path))
+                    subparser = self.__class__(Source(fname=path))
                     subparser.test()
         stdlog[0] << f" <POP @{self.source.fname}"
 
@@ -216,7 +216,7 @@ class Parser(object):
             with open(path, mode="r") as file:
                 return mdRawHTML(file.read())
         elif path.suffix == ".pine" or path.suffix == ".md":
-            subparser = self.__class__(Source(path))
+            subparser = self.__class__(Source(fname=path))
             return subparser.parse(ensure_html=False, symbol_table=self.symbol_table)
         else:
             stdwar[0] << f"Unknown extension '{path.suffix}'."

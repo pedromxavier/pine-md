@@ -9,8 +9,13 @@ from .pinelib import Source
 from .pineparser import pineParser
 
 
-class pine:
-    """"""
+class Pine(object):
+    """
+    Parameters
+    ----------
+    fname: str
+        Source code path
+    """
 
     def __init__(self, fname: str):
         """"""
@@ -20,7 +25,7 @@ class pine:
             stderr[0] << f"Invalid source file '{self.fname}'."
             exit(1)
 
-        self.source = Source(self.fname)
+        self.source = Source(fname=self.fname)
         self.parser = pineParser(self.source)
 
     def parse(self, *, ensure_html: bool=True):
