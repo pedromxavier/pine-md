@@ -7,6 +7,7 @@ from cstream import Stream, stdout, stdlog, stderr
 
 from .banner import PINE_BANNER
 from ..pine import Pine
+from ..pinelib.repl import repl
 
 stdpine = Stream(fg="GREEN", sty="DIM")
 
@@ -35,6 +36,7 @@ def main():
     parser.add_argument('-v', '--verbose', type=int, choices=range(4), default=0, help="Output verbosity.")
     parser.add_argument("--html", action="store_true", help="Ensures HTML output.")
     parser.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--exp", action="store_true", help=argparse.SUPPRESS)
     
     ## Parse Arguments
     args = parser.parse_args()
@@ -50,10 +52,18 @@ def main():
         stderr[0] << f"Invalid File Path: '{args.source}'."
         exit(1)
 
-    pine = Pine(path)
-    tree = pine.parse(ensure_html=args.html)
+    if args.exp:
+        pine = Pine(path, parser="EXPERIMENTAL")
+        try:
+            html = pine.parse()
+        except SyntaxError:
+            stderr[0] << "Syntax Error"
+            html = None
+    else:
+        pine = Pine(path)
+        tree = pine.parse(ensure_html=args.html)
 
-    html: str = tree.html
+        html: str = tree.html
 
     if args.output:
         path = Path(args.output)
@@ -66,7 +76,6 @@ def main():
         stdout[0] << html
 
     if args.debug:
-        stdlog[0] << tree.tree
-        stdlog[0] << pine.parser.symbol_table
+        repl(globals(), locals())
 
     exit(0)

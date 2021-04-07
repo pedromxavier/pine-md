@@ -141,6 +141,7 @@
         "executes",
         "exists",
         "exit",
+        "exparser",
         "expr",
         "expression",
         "extension",

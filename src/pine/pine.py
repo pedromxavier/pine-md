@@ -7,6 +7,7 @@ from cstream import stderr, stdlog, stdwar, stdout
 # Local
 from .pinelib import Source
 from .pineparser import pineParser
+from .pineparser.exparser import pineLexer as expParser
 
 
 class Pine(object):
@@ -28,8 +29,9 @@ class Pine(object):
         self.source = Source(fname=self.fname)
             
         if parser == "EXPERIMENTAL":
-            from .pineparser.exparser import pineLexer as pineParser
-        self.parser = pineParser(self.source)
+            self.parser = expParser(self.source)
+        else:
+            self.parser = pineParser(self.source)
 
     def parse(self, *, ensure_html: bool=True):
         return self.parser.parse(ensure_html=ensure_html)
