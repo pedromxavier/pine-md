@@ -42,7 +42,7 @@ class mdType(object, metaclass=abc.ABCMeta):
         return len(self.child)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}"
+        return f"{self.__class__.__name__}(*{self.child!r})"
 
     @property
     def pad(self):

@@ -65,6 +65,23 @@ class Source(str):
         """Truth-value for emptiness checking."""
         return self.__len__() > 0
 
+    def lexchr(self, lexpos: int) -> dict:
+        """Retrieves lexinfo dictionary from chrpos."""
+        lineno = 1
+        while lineno < len(self.table) and lexpos < self.table[lineno]:
+            lineno += 1
+
+        if lineno == len(self.table):
+            return self.eof.lexinfo
+        else:
+            return {
+                'lineno': lineno,
+                'lexpos': lexpos,
+                'chrpos': lexpos - self.table[lineno - 1] + 1,
+                'source': self,
+            }
+
+
     @property
     def eof(self):
         """Virtual object to represent the End-of-File for the given source

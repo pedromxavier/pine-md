@@ -7,7 +7,7 @@ from cstream import stderr, stdlog, stdwar, stdout
 # Local
 from .pinelib import Source
 from .pineparser import pineParser
-from .pineparser.exparser import pineLexer as expParser
+from .pineparser.exparser import pineParser as expParser
 
 
 class Pine(object):

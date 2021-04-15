@@ -77,47 +77,21 @@ class mdDiv(mdTag):
 class mdHeader(mdTag):
     """"""
 
+    heading = None
+
     __inline__ = True
 
-    @abc.abstractproperty
-    def heading(self) -> int:
-        pass
+    __header__ = {}
+
+    @classmethod
+    def new(cls, heading: int):
+        if heading not in cls.__header__:
+            cls.__header__[heading] = type(f'mdHeader{heading}', (cls,) , {'heading': heading})
+        return cls.__header__[heading]
 
     @property
     def tag(self):
         return f"h{self.heading}"
-
-
-class mdHeader1(mdHeader):
-    """"""
-
-    @property
-    def heading(self) -> int:
-        return 1
-
-
-class mdHeader2(mdHeader):
-    """"""
-
-    @property
-    def heading(self) -> int:
-        return 2
-
-
-class mdHeader3(mdHeader):
-    """"""
-
-    @property
-    def heading(self) -> int:
-        return 3
-
-
-class mdHeader4(mdHeader):
-    """"""
-
-    @property
-    def heading(self) -> int:
-        return 4
 
 # Links & Multimedia
 class mdLink(mdType):

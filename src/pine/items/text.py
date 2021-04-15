@@ -9,18 +9,12 @@ class mdText(mdType):
 
     __inline__ = True
 
-    def __bool__(self) -> bool:
-        return len(self.text) > 0
-
     @property
     def text(self):
         return self.SEP.join(c.html if isinstance(c, mdType) else str(c) for c in self)
 
     def __str__(self):
         return self.text
-
-    def __repr__(self):
-        return f"mdText({self.text!r})"
 
     @property
     def html(self) -> str:
