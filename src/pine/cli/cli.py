@@ -11,8 +11,6 @@ from ..pinelib.repl import repl
 
 stdpine = Stream(fg="GREEN", sty="DIM")
 
-_output = ""
-
 class PineArgumentParser(argparse.ArgumentParser):
 
     def print_help(self, from_help: bool=True):
