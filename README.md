@@ -1,6 +1,8 @@
 # Pine Markdown
 ### _An acid markdown flavour_
 
+
+
 <br>
 <br>
 
@@ -43,7 +45,7 @@ body
         `code`, _italic_, *bold*, ~strikethrough~ and \(maybe\) more.
         Yes, some things must be escaped, for good reasons.
         We have [https://somelink.net](links)! Want to open on a new tab?
-        Try those: [https://newtablink.net]*(link).
+        Try those: [https://newtablink.net]@(link).
     }
     {   #incredible .fancy .box-sized
         After applying id and classes to your div you might want to include an image:

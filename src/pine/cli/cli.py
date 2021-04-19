@@ -34,7 +34,6 @@ def main():
     parser.add_argument('-v', '--verbose', type=int, choices=range(4), default=0, help="Output verbosity.")
     parser.add_argument("--html", action="store_true", help="Ensures HTML output.")
     parser.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--exp", action="store_true", help=argparse.SUPPRESS)
     
     ## Parse Arguments
     args = parser.parse_args()
@@ -50,32 +49,22 @@ def main():
         stderr[0] << f"Invalid File Path: '{args.source}'."
         exit(1)
 
-    if args.exp:
-        pine = Pine(path, parser="EXPERIMENTAL")
-        try:
-            html = pine.parse()
-        except SyntaxError:
-            stderr[0] << "Syntax Error"
-            html = None
-    else:
-        pine = Pine(path)
-        tree = pine.parse(ensure_html=args.html)
 
-        html: str = tree.html
+    pine = Pine(path)
+    tree = pine.parse(ensure_html=args.html)
 
-    if args.output:
-        path = Path(args.output)
-        if not path.exists() or not path.is_file():
-            stderr[0] << f"Invalid output file '{path}'."
-            exit(1)
-        with open(path, mode='w', encoding='utf-8') as file:
-            file.write(html)
-    else:
-        stdout[0] << html
-
-    if args.debug:
-        global get_state
-        get_state = pine.parser.state.get_state
-        repl(globals(), locals())
+    print(tree)
 
     exit(0)
+
+    # if args.output:
+    #     path = Path(args.output)
+    #     if not path.exists() or not path.is_file():
+    #         stderr[0] << f"Invalid output file '{path}'."
+    #         exit(1)
+    #     with open(path, mode='w', encoding='utf-8') as file:
+    #         file.write(html)
+    # else:
+    #     stdout[0] << html
+
+    # exit(0)

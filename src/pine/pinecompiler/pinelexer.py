@@ -1,5 +1,4 @@
 import re
-from time import perf_counter as clock
 from ply import lex
 
 def regex(pattern: str):
@@ -7,7 +6,6 @@ def regex(pattern: str):
         callback.__doc__ = pattern
         return callback
     return decor
-    
 
 class PineLexer(object):
 
@@ -72,7 +70,7 @@ class PineLexer(object):
     def lexer_error(self, msg):
         raise self.PineLexerError(msg, lineno=self.lexer.lineno)
 
-    @regex(r'[^\S\r\n]*\n+')
+    @regex(r'^[^\S\r\n]+$|[^\S\r\n]*\n')
     def t_ANY_ENDL(self, t):
         t.value = t.value.count('\n')
         self.lexer.lineno += t.value
@@ -282,15 +280,3 @@ class PineLexer(object):
 
     def t_ANY_error(self, t):
         self.lexer_error(f"Unexpected token '{t.value[0]}'.")
-
-with open('source.mp', encoding='utf-8') as file:
-    source = file.read()
-
-if __name__ == '__main__':
-    t = clock()
-    plexer = PineLexer()
-    plexer.lexer.input(source)
-    toks = list(plexer.tokenize())
-    print(f"Lex time: {clock() - t:.5f}s")
-    import pprint
-    pprint.pprint(toks)

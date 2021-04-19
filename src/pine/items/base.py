@@ -116,3 +116,8 @@ class mdContents(mdType):
     @property
     def html(self):
         return f"\n{self.pad}".join(f"{c.html}" for c in self)
+
+class mdCommand(object):
+    
+    def __init__(self, cmd: str):
+        self.cmd = cmd
