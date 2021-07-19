@@ -6,8 +6,7 @@ from cstream import stderr, stdlog, stdwar, stdout
 
 # Local
 from .pinelib import Source
-from .pinecompiler import PineCompiler
-
+from .pineparser import PineParser
 
 class Pine(object):
     """
@@ -17,7 +16,7 @@ class Pine(object):
         Source code path
     """
 
-    def __init__(self, fname: str, *,  parser: str = None):
+    def __init__(self, fname: str):
         """"""
         self.fname = Path(fname).absolute()
 
@@ -26,7 +25,11 @@ class Pine(object):
             exit(1)
 
         self.source = Source(fname=self.fname)    
-        self.compiler = PineCompiler()
+        self.parser = PineParser(self.source)
 
-    def parse(self, *, ensure_html: bool=True):
-        return self.compiler.compile(self.source)
+    def parse(self) -> list:
+        return self.parser.parse()
+
+    def tokens(self) -> list:
+        self.parser.lexer.lexer.input(self.source)
+        return self.parser.lexer.tokenize()

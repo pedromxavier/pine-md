@@ -1,9 +1,9 @@
 """"""
 
-from ..pinelib import TrackType, track, Source
+from ..pinelib import TrackType
 
 
-class mdError(Exception):
+class PineError(Exception):
     "Error"
 
     def __init__(self, msg: str = None, target: TrackType = None, code: int = 1):
@@ -27,5 +27,8 @@ class mdError(Exception):
             return self.msg
 
 
-class mdSyntaxError(mdError):
+class PineSyntaxError(PineError):
     "Syntax Error"
+
+class PineLexError(PineError):
+    "Lex Error"

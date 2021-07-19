@@ -28,7 +28,7 @@ class mdType(object, metaclass=abc.ABCMeta):
     def __setitem__(self, key: str, value: object):
         self._data[key] = value
 
-    def append(self, c: object):
+    def append(self, c: object):    
         self.child.append(c)
 
     def update(self, d: dict):
@@ -42,7 +42,7 @@ class mdType(object, metaclass=abc.ABCMeta):
         return len(self.child)
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(*{self.child!r})"
+        return f"{self.__class__.__name__}({', '.join(map(repr, self.child))})"
 
     @property
     def pad(self):

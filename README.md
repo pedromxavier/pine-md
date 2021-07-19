@@ -32,11 +32,11 @@ This is _Pine Markdown_, or simply, _pine-md_. The greatest motivation behind th
 ## Simple HTML Documents
 ```mathematica
 html
-$   title = "Home"
-$   author = "Pine"
-$   year = "MMXXI"
+:title = "Home"
+:author = "Pine"
+:year = "MMXXI"
 head
-/   "head.md"
+    [./head.mp]@mp
     [./static/css/style.css]@css
     [./static/js/script.js]@js
 body
@@ -45,7 +45,7 @@ body
         `code`, _italic_, *bold*, ~strikethrough~ and \(maybe\) more.
         Yes, some things must be escaped, for good reasons.
         We have [https://somelink.net](links)! Want to open on a new tab?
-        Try those: [https://newtablink.net]@(link).
+        Try those: [https://newtablink.net]*(link).
     }
     {   #incredible .fancy .box-sized
         After applying id and classes to your div you might want to include an image:

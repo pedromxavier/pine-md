@@ -49,3 +49,21 @@ class mdListItem(mdTag):
     @property
     def tag(self) -> str:
         return "li"
+
+class mdUListItem(mdTag):
+    """"""
+
+    __inline__ = True
+
+    @property
+    def tag(self) -> str:
+        return "li"
+
+class mdOListItem(mdTag):
+    """"""
+
+    __inline__ = True
+
+    @property
+    def tag(self) -> str:
+        return "li"
