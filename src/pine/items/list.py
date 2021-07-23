@@ -32,6 +32,10 @@ class mdUList(mdList):
     def tag(self) -> str:
         return "ul"
 
+    @property
+    def tex(self) -> str:
+        return "[itemize]"
+
 
 class mdOList(mdList):
     """"""
@@ -40,6 +44,9 @@ class mdOList(mdList):
     def tag(self) -> str:
         return "ol"
 
+    @property
+    def tex(self) -> str:
+        return "[enumerate]"
 
 class mdListItem(mdTag):
     """"""

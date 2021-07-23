@@ -78,6 +78,13 @@ class mdType(object, metaclass=abc.ABCMeta):
     def html(self) -> str:
         pass
 
+    @abc.abstractproperty
+    def tex(self) -> str:
+        pass
+
+    def tex_usepackage(self, package: str):
+        raise NotImplementedError
+
     @classmethod
     def escape(cls, text: str, quote: bool = False):
         return html.escape(text, quote=quote)
@@ -88,7 +95,6 @@ class mdType(object, metaclass=abc.ABCMeta):
             return (self, None)
         else:
             return (self, [c.tree for c in self.child if isinstance(c, mdType)])
-
 
 class mdNull(mdType):
     __ref__ = None
@@ -109,6 +115,25 @@ class mdNull(mdType):
     @property
     def html(self) -> str:
         return str()
+
+class mdDocument(mdType):
+
+    @property
+    def html(self):
+        return f"\n{self.pad}".join(f"{c.html if isinstance(c, mdType) else str(c)}" for c in self if c)
+
+    @property
+    def tex(self):
+        return f"{self.tex_preamble}{self.tex_document}"
+
+    @property
+    def tex_preamble(self):
+        raise NotImplementedError
+
+    @property
+    def tex_document(self):
+        raise NotImplementedError
+        
 
 class mdContents(mdType):
     """"""

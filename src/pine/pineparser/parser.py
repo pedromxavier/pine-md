@@ -53,7 +53,8 @@ class Parser(object):
 
     ## ------ YACC ------
     def p_error(self, p):
+        target = self.source.lexchr(p.lexpos)
         if p is None:
             self.syntax_error(f"Unexpected EOF. [state:{self.parser.state}]")
         else:
-            self.syntax_error(f"Problem at {p.type!r} [state:{self.parser.state}]")
+            self.syntax_error(f"Problem at {p} ({p.type}) [state:{self.parser.state}]", target=target)

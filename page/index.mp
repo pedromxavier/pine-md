@@ -9,10 +9,13 @@
     §
 
 #   2. Testing plain HTML and variable evaluation
-    <head>
-        <title>§title§</title>
-    </head>
-
+    { html
+    { head
+        { title
+        §title§
+        }
+    }
+    { body
 #   3. Test false include
 #   Should display Warning.
     [./folder/file.mp]@mp
@@ -33,7 +36,19 @@
     #3 Windows
     `> python -m pip install pine-md`
 
-#   6 Testing some div and variable evaluation
-    {   footer
+#   6. Testing some common div and lists
+    {
+        This is a simple div. Now, some lists
+        - First, this.
+        - Second, that.
+        - Third, this one.
+        - Last, the fourth
+        Ok, the list just ended
+    }
+
+#   7. Testing some div and variable evaluation
+    {   footer #unique .main.ultra.fashion
         Rio de Janeiro &copy; §year§
+    }
+    }
     }

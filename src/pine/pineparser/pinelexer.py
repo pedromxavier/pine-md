@@ -72,10 +72,12 @@ class PineLexer(Lexer):
 
     @regex(r"\.[a-zA-Z][a-zA-Z0-9\-]+")
     def t_div_DIVCLASS(self, t):
+        t.value = t.value[1:]
         return t
 
-    @regex(r"\.[a-zA-Z][a-zA-Z0-9\-]+")
+    @regex(r"\#[a-zA-Z][a-zA-Z0-9\-]+")
     def t_div_DIVID(self, t):
+        t.value = t.value[1:]
         return t
 
     @regex(r"\}")
@@ -84,6 +86,7 @@ class PineLexer(Lexer):
 
     @regex(r"\#[1-6]")
     def t_mdfancy_HEADING(self, t):
+        t.value = t.value[1]
         return t
 
     @regex(r"\+")
@@ -152,15 +155,15 @@ class PineLexer(Lexer):
         t.value = t.value[3:-2]
         return t
 
-    @regex(r"[^\`]")
-    def t_codeblock_CBCODE(self, t):
-        return t
-
-    @regex(r"\`\`\`\n?")
+    @regex(r"\`\`\`")
     def t_codeblock_CBPULL(self, t):
         self.lexer.begin("INITIAL")
         return t
 
+    @regex(r".+")
+    def t_codeblock_CBCODE(self, t):
+        return t
+        
     @regex(r"\`")
     def t_markdown_mdfancy_TICK(self, t):
         return t

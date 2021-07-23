@@ -31,7 +31,7 @@ class mdTag(mdType):
             return "\n".join(
                 [
                     f"<{self.tag}{self.keys}>{self.push}",
-                    *[f"{self.pad}{c.html}" for c in self],
+                    *[f"{self.pad}{c.html if isinstance(c, mdType) else str(c)}" for c in self],
                     f"{self.pop}{self.pad}</{self.tag}>",
                 ]
             )
@@ -39,7 +39,18 @@ class mdTag(mdType):
             return "".join(
                 [
                     f"<{self.tag}{self.keys}>",
-                    *[f"{c.html}" for c in self],
+                    *[f"{c.html if isinstance(c, mdType) else str(c)}" for c in self],
                     f"</{self.tag}>",
                 ]
             )
+
+        
+    @property
+    def tex(self) -> str:
+        return "\n".join(
+            [
+                f"\\begin{{{self.tag}}}[{self.keys}]{self.push}",
+                *[f"{self.pad}{c.html if isinstance(c, mdType) else str(c)}" for c in self],
+                f"{self.pop}{self.pad}\\end{{{self.tag}}}",
+            ]
+        )

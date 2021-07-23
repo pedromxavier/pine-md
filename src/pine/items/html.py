@@ -106,7 +106,12 @@ class mdLink(mdType):
     def html(self) -> str:
         return f'<a href="{self.ref.html}"{self.keys}>{self.text.html}</a>'
 
-class mdXLink(mdLink):
+    @property
+    def tex(self) -> str:
+        self.tex_usepackage('href')
+        return f''
+
+class mdSLink(mdLink):
     """"""
 
     @property
@@ -132,6 +137,16 @@ class mdLoader(mdType):
             return f'<link rel="stylesheet" href="{self.ref}">'
         elif self.key == "img":
             return f'<img src="{self.ref}">'
+        elif self.key == "mp":
+            return f'<OPEN "{self.ref}">'
+        else:
+            stdwar[0] << f"Invalid loader '{self.key}'."
+            return str()
+
+    @property
+    def tex(self) -> str:
+        if self.key == "img":
+            return f'''\\begin{{figure}}\n\\includegraphics{{self.ref}}\n\\end{{figure}}'''
         else:
             stdwar[0] << f"Invalid loader '{self.key}'."
             return str()

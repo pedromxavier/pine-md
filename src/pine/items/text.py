@@ -20,6 +20,10 @@ class mdText(mdType):
     def html(self) -> str:
         return str(self.text)
 
+    @property
+    def tex(self) -> str:
+        return str(self.text)
+
 class mdBlock(mdText):
 
     __inline__ = False

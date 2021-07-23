@@ -47,8 +47,9 @@ def main():
         print(f"Total: {len(TOKENS)} tokens.")
         print("\n".join(f"{k: 3d}. {t}" for k, t in enumerate(TOKENS, 1)))
     else:
-        BLOCKS = pine.parse()
-        if BLOCKS is not None:
-            print("\n".join(f"{k: 3d}. {b}" for k, b in enumerate(BLOCKS, 1)))
+        tree = pine.parse()
+        if tree is not None:
+            print(tree.html)
         else:
-            print("Empty.")
+            stderr[0] << "No Output Generated."
+        

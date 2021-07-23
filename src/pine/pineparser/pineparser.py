@@ -9,26 +9,42 @@ from pathlib import Path
 ## Third-Party
 from ply import yacc
 from cstream import Stream, stderr
-import pyduktape as pdt
+import pyduktape
 
 ## Local
-from ..items import mdType, mdNull, mdCommand, mdContents
-from ..items import mdHeader, mdText, mdLink, mdXLink
+from ..pinelib import Source
+from ..items import mdType, mdTag, mdDocument, mdBlock, mdLoader
+from ..items import mdHeader, mdText, mdLink, mdSLink
 from ..items import mdStrike, mdCode, mdBold, mdItalic
-from ..items import mdUListItem, mdOListItem
+from ..items import mdUList, mdOList, mdListItem
 from .pinelexer import PineLexer
 from .parser import Parser
 
 
 class PineParser(Parser):
 
+    DEFAULT_DIV = {'name': 'div', 'id': None, 'class': []}
+
     precedence = [
-        ("left", "ENDL", "AST", "UNDER", "TILDE", "TICK", "LPAR", "RPAR", "LBRA", "RBRA")
+        
+        ("left", "ULIST", "OLIST"),
+        ("left", "INDENT"),
+        ("left", "LPAR", "RPAR", "LINK", "SLINK", "LOADER"),
+        ("left", "WORD", "SPACE", "HREF"),
+        ("left", "AST", "UNDER", "TILDE", "TICK", "LBRA", "RBRA"),
+        
     ]
 
     # These lines are needed in subclasses
     _Lexer = PineLexer
     tokens = PineLexer.tokens
+
+    def __init__(self, source: Source):
+        Parser.__init__(self, source)
+        self.js_context = None
+
+        self.list_buffer = None
+        self.list_stack = []
 
     def include(self, path: str, *, lineno: int = 0) -> mdType:
         """Includes content rendered from another file."""
@@ -42,42 +58,132 @@ class PineParser(Parser):
                 return subparser.parse()
 
     def javascript(self, code: str) -> str:
-        return f"JS[{code}]"
+        if self.js_context is None:
+            self.js_context = pyduktape.DuktapeContext()
+        output = self.js_context.eval_js(code)
+        if output:
+            return str(output)
+        else:
+            return None
+
+    def list_pull(self):
+        """"""
+        if self.list_stack:
+            output = self.list_stack[0]['buffer']
+            self.list_stack.clear()
+            self.list_buffer = None
+        else:
+            output = None
+
+        return output
+
+
+    def list_push(self, indent: int, kind: str, item: mdType):
+        """"""
+        if self.list_stack:
+            top = self.list_stack[-1]
+            if top['indent'] == indent:
+                if top['kind'] == kind:
+                    self.list_buffer.append(mdListItem(item))
+                    return None
+                elif kind == '+': # Ordered List
+                    if len(self.list_stack) >= 2:
+                        self.list_stack[-2]['buffer'].append(self.list_buffer)
+                        output = None
+                    else:
+                        output = self.list_buffer
+                    self.list_buffer = mdOList(mdListItem(item))
+                elif kind == '-': # Unordered List
+                    if len(self.list_stack) >= 2:
+                        self.list_stack[-2]['buffer'].append(self.list_buffer)
+                        output = None
+                    else:
+                        output = self.list_buffer
+                    self.list_buffer = mdUList(mdListItem(item))
+                else:
+                    raise ValueError(f"Invalid list kind: '{kind}'.")
+        
+                self.list_stack[-1] = {'indent': indent, 'kind': kind, 'buffer': self.list_buffer}
+                return output
+            elif top['indent'] < indent: # Push
+                if kind == '+': # Ordered List
+                    self.list_buffer = mdOList(mdListItem(item))
+                elif kind == '-': # Unordered List
+                    self.list_buffer = mdUList(mdListItem(item))
+                else:
+                    raise ValueError(f"Invalid list kind: '{kind}'.")
+                
+                self.list_stack[-1]['buffer'].append(self.list_buffer)
+                self.list_stack.append({'indent': indent, 'kind': kind, 'buffer': self.list_buffer})
+                return None
+            else:
+                self.list_stack.pop()
+                if self.list_stack:
+                    self.list_buffer = self.list_stack[-1]['buffer']
+                return self.list_push(indent, kind, item)
+        else:
+            if kind == '+': # Ordered List
+                self.list_buffer = mdOList(mdListItem(item))
+            elif kind == '-': # Unordered List
+                self.list_buffer = mdUList(mdListItem(item))
+            else:
+                raise ValueError(f"Invalid list kind: '{kind}'.")
+
+            self.list_stack.append({'indent': indent, 'kind': kind, 'buffer': self.list_buffer})
+            return None
 
     ## ------- YACC -------
     def p_start(self, p):
         """start : blocklist"""
-        return self.retrieve(p[1])
+        self.retrieve(mdDocument(self.list_pull(), *p[1]))
 
     def p_blocklist(self, p):
-        """blocklist : blocklist block
-        | block
+        """blocklist : blocklist ENDL block
+                     | block
         """
-        if len(p) == 3:
-            if p[2] is not None:
-                p[1].append(p[2])
-            p[0] = p[1]
+        if len(p) == 4:
+            p[0] = [*p[1], *p[3]]
         else:
-            if p[1] is not None:
-                p[0] = [p[1]]
-            else:
-                p[0] = []
+            p[0] = p[1]
 
-    def p_block_header(self, p):
-        """block : INDENT HEADING SPACE markdown ENDL
-        | INDENT HEADING SPACE markdown
+    def p_block(self, p):
+        """ block : div
+                  | header
+                  | mdline
+                  | codeblock
         """
-        p[0] = ("heading", p[1], p[2], p[4])
+        p[0] = [self.list_pull(), p[1]]
 
-    def p_block_markdown(self, p):
-        """block : INDENT markdown ENDL
-        | INDENT markdown
+    def p_block_list(self, p):
+        """ block : listitem """
+        p[0] = [self.list_push(*p[1])]
+
+    def p_listitem(self, p):
+        """ listitem : INDENT listtoken space markdown"""
+        p[0] = (p[1], p[2], mdText(*p[4]))
+
+    def p_listtoken(self, p):
+        """ listtoken : OLIST
+                      | ULIST
         """
-        p[0] = ("markdown-line", p[1], p[2])
+        p[0] = p[1]
+
+    def p_header(self, p):
+        """ header : INDENT HEADING space markdown
+        """
+        Heading = mdHeader.new(p[2])
+        p[0] =  Heading(*p[4])
+
+    def p_markdown_line(self, p):
+        """ mdline : INDENT markdown
+        """
+        p[0] = mdText(*p[2])
+
+    # :: LISTS ::
 
     def p_markdown(self, p):
         """markdown : markdown fragment
-        | fragment
+                    | fragment
         """
         if len(p) == 3:
             if p[2] is not None:
@@ -86,13 +192,21 @@ class PineParser(Parser):
         else:
             p[0] = [p[1]]
 
-    def p_fragment_loader(self, p):
-        """ fragment : loader"""
+    def p_fragment(self, p):
+        """ fragment : loader
+                     | javascript
+                     | WORD
+                     | SPACE
+                     | italic
+                     | bold
+                     | strike
+                     | code
+        """
         p[0] = p[1]
 
     def p_loader(self, p):
         """ loader : LBRA HREF LOADER """
-        p[0] = ("loader", p[2], p[3])
+        p[0] = mdLoader(p[2], p[3])
 
     def p_loader_ref(self, p):
         """ loader : LBRA HREF RBRA """
@@ -100,45 +214,27 @@ class PineParser(Parser):
 
     def p_loader_link(self, p):
         """ loader : LBRA HREF LINK markdown RPAR"""
-        p[0] = ("loader-link", p[2], p[5])
+        p[0] = mdLink(p[2], p[5])
 
     def p_loader_slink(self, p):
         """ loader : LBRA HREF SLINK markdown RPAR"""
-        p[0] = ("loader-slink", p[2], p[5])
-
-    def p_fragment_javascript(self, p):
-        """ fragment : javascript"""
-        p[0] = p[1]
-
-    def p_fragment_basic(self, p):
-        """fragment : WORD
-        | SPACE
-        """
-        p[0] = p[1]
-
-    def p_fragment_format(self, p):
-        """fragment : italic
-        | bold
-        | strike
-        | code
-        """
-        p[0] = p[1]
+        p[0] = mdSLink(p[2], p[5])
 
     def p_format_italic(self, p):
         """ italic : UNDER markdown UNDER """
-        p[0] = ("italic", p[2])
+        p[0] = mdItalic(*p[2])
 
     def p_format_bold(self, p):
         """ bold : AST markdown AST """
-        p[0] = ("bold", p[2])
+        p[0] = mdBold(*p[2])
 
     def p_format_strike(self, p):
         """ strike : TILDE markdown TILDE """
-        p[0] = ("strike", p[2])
+        p[0] = mdStrike(*p[2])
 
     def p_format_code(self, p):
         """ code : TICK markdown TICK """
-        p[0] = ("code", p[2])
+        p[0] = mdCode(*p[2])
 
     # :: JAVASCRIPT ::
     def p_javascript_code(self, p):
@@ -150,111 +246,80 @@ class PineParser(Parser):
         p[0] = None
 
     # :: JAVASCRIPT ::
-
-    def p_block_list(self, p):
-        """ block : list """
-        p[0] = p[1]
-
-    def p_list(self, p):
-        """list : ulist
-        | olist
-        """
-        p[0] = p[1]
-
-    def p_ulist(self, p):
-        """ulist : ulist ulistitem
-        | ulistitem
-        """
-        if len(p) == 3:
-            p[1].append(p[2])
-            p[0] = p[1]
-        else:
-            p[0] = [p[1]]
-
-    def p_ulistitem(self, p):
-        """ulistitem : INDENT ULIST markdown ENDL
-        | INDENT ULIST markdown
-        """
-        p[0] = p[3]
-
-    def p_olist(self, p):
-        """olist : olist olistitem
-        | olistitem
-        """
-        if len(p) == 3:
-            p[1].append(p[2])
-            p[0] = p[1]
-        else:
-            p[0] = [p[1]]
-
-    def p_olistitem(self, p):
-        """olistitem : INDENT OLIST markdown ENDL
-        | INDENT OLIST markdown
-        """
-        p[0] = p[3]
-
-    def p_block_codeblock(self, p):
-        """ block : codeblock """
-
     def p_codeblock(self, p):
-        """codeblock : CBPUSH CBCODE CBPULL ENDL
-        | CBPUSH CBCODE CBPULL
+        """ codeblock : CBPUSH CBCODE CBPULL
         """
         p[0] = p[2]
 
     def p_codeblock_empty(self, p):
-        """codeblock : CBPUSH CBPULL ENDL
-        | CBPUSH CBPULL
+        """ codeblock : CBPUSH CBPULL
         """
         p[0] = None
 
-    def p_block_div(self, p):
-        """ block : div """
-        p[0] = p[1]
-
     def p_div(self, p):
-        """div : INDENT DIVPUSH divheader ENDL blocklist INDENT DIVPULL ENDL
-        | INDENT DIVPUSH divheader ENDL blocklist INDENT DIVPULL
+        """ div : INDENT DIVPUSH divheader ENDL blocklist ENDL INDENT DIVPULL
         """
-        p[0] = ("div", p[3], p[5])
+        Tag = mdTag.new(p[3]['name'])
+        element = Tag(*p[5])
+        element.update({'id' : p[3]['id'], 'class': " ".join(p[3]['class'])})
+        p[0] = element
 
-    def p_divheader_full(self, p):
-        """ divheader : SPACE DIVNAME SPACE divkeys """
-        p[0] = ("divheader", p[2], p[4])
-
-    def p_divheader_name(self, p):
-        """ divheader : SPACE DIVNAME """
-        p[0] = ("divheader", p[2], [])
-
-    def p_divheader_keys(self, p):
-        """ divheader : SPACE divkeys """
-        p[0] = ("divheader", None, p[2])
+    def p_divheader(self, p):
+        """ divheader : space divkeys """
+        keys = self.DEFAULT_DIV.copy()
+        keys.update(p[2])
+        p[0] = keys
 
     def p_divheader_empty(self, p):
         """ divheader : """
-        p[0] = ("divheader", None, [])
+        p[0] = self.DEFAULT_DIV.copy()
 
     def p_divkeys(self, p):
-        """divkeys : divkeys SPACE divkey
-        | divkey
+        """divkeys : divkeys space divkey
+                   | divkey
         """
         if len(p) == 4:
-            if p[3] is not None:
-                p[1].append(p[3])
-            p[0] = p[1]
+            keys = p[1]
+            key, val = p[3]
         else:
-            p[0] = [p[1]]
+            keys = {}
+            key, val = p[1]
+        
+        if key == 'id' or key == 'name':
+            keys[key] = val
+        elif key == 'class':
+            if key in keys:
+                keys[key].append(val)
+            else:
+                keys[key] = [val]
+        else:
+            raise ValueError('key not in {id, name, class}')
+        
+        p[0] = keys
 
-    def p_divkey(self, p):
-        """divkey : DIVID
-        | DIVCLASS
+    def p_divkey_name(self, p):
+        """divkey : DIVNAME"""
+        p[0] = ('name', p[1])
+        
+    def p_divkey_id(self, p):
+        """divkey : DIVID"""
+        p[0] = ('id', p[1])
+
+    def p_divkey_class(self, p):
+        """divkey : DIVCLASS"""
+        p[0] = ('class', p[1])
+
+    def p_block_empty(self, p):
+        """ block : INDENT
+                  |
+        """
+        p[0] = []
+
+    def p_space(self, p):
+        """ space : SPACE
+                  | 
         """
         if len(p) == 2:
             p[0] = p[1]
         else:
-            p[0] = None
-
-    def p_block_empty(self, p):
-        """ block : INDENT ENDL
-        | ENDL"""
-        p[0] = None
+            p[0] = 0
