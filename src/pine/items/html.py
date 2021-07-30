@@ -21,6 +21,7 @@ class mdRawHTML(mdType):
     def html(self):
         return self.text
 
+
 class mdHTML(mdType):
     """"""
 
@@ -65,6 +66,16 @@ class mdBody(mdTag):
         return f"body"
 
 
+class mdPre(mdTag):
+    """"""
+
+    __inline__ = True
+
+    @property
+    def tag(self):
+        return f"pre"
+
+
 class mdDiv(mdTag):
     """"""
 
@@ -86,12 +97,15 @@ class mdHeader(mdTag):
     @classmethod
     def new(cls, heading: int):
         if heading not in cls.__header__:
-            cls.__header__[heading] = type(f'mdHeader{heading}', (cls,) , {'heading': heading})
+            cls.__header__[heading] = type(
+                f"mdHeader{heading}", (cls,), {"heading": heading}
+            )
         return cls.__header__[heading]
 
     @property
     def tag(self):
         return f"h{self.heading}"
+
 
 # Links & Multimedia
 class mdLink(mdType):
@@ -104,19 +118,21 @@ class mdLink(mdType):
 
     @property
     def html(self) -> str:
-        return f'<a href="{self.ref.html}"{self.keys}>{self.text.html}</a>'
+        return f'<a href="{self.ref}"{self.keys}>{self.text.html}</a>'
 
     @property
     def tex(self) -> str:
-        self.tex_usepackage('href')
-        return f''
+        self.tex_usepackage("href")
+        return f""
+
 
 class mdSLink(mdLink):
     """"""
 
     @property
     def html(self) -> str:
-        return f'<a href="{self.ref.html}" target="_blank" rel="noopener noreferrer"{self.keys}>{self.text.html}</a>'
+        return f'<a href="{self.ref}" target="_blank" rel="noopener noreferrer"{self.keys}>{self.text.html}</a>'
+
 
 class mdLoader(mdType):
     """"""
@@ -138,15 +154,52 @@ class mdLoader(mdType):
         elif self.key == "img":
             return f'<img src="{self.ref}">'
         elif self.key == "mp":
-            return f'<OPEN "{self.ref}">'
+            return self.pine.parse(self.ref, strict=False).html
         else:
-            stdwar[0] << f"Invalid loader '{self.key}'."
+            stdwar[1] << f"Invalid loader '{self.key}'."
             return str()
 
     @property
     def tex(self) -> str:
         if self.key == "img":
-            return f'''\\begin{{figure}}\n\\includegraphics{{self.ref}}\n\\end{{figure}}'''
+            return (
+                f"""\\begin{{figure}}\n\\includegraphics{{self.ref}}\n\\end{{figure}}"""
+            )
         else:
-            stdwar[0] << f"Invalid loader '{self.key}'."
+            stdwar[1] << f"Invalid loader '{self.key}'."
             return str()
+
+class mdHref(mdType):
+
+    __href__ = {}
+    __nref__ = 0
+
+    @classmethod
+    def counter(cls) -> int:
+        cls.__nref__ += 1
+        return cls.__nref__
+
+    def __new__(cls, ref: str):
+        if ref not in cls.__href__:
+            cls.__href__[ref] = (mdType.__new__(cls), cls.counter())
+        return cls.__href__[ref][0]
+
+    def __init__(self, ref: str):
+        self.ref = ref
+
+    @property
+    def html(self) -> str:
+        inner = self.html_escape(f'[{self.__href__[self.ref][1]}]')
+        return f'<a href="#{self.ref}">{inner}</a>'
+
+    @property
+    def tex(self) -> str:
+        raise NotImplementedError
+
+    @classmethod
+    def reference(cls, ref: str) -> str:
+        if ref in cls.__href__:
+            inner = cls.html_escape(f'[{cls.__href__[ref][1]}]')
+            return f'<span id="{ref}">{inner}</span>'
+        else:
+            return ''

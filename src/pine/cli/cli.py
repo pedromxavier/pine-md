@@ -30,26 +30,38 @@ def main():
     
     parser = PineArgumentParser(**params)
     parser.add_argument("source", type=str, action="store", help="Source file.")
-    # parser.add_argument('-o', '--output', type=str, action="store", help="Output file path. Ensures HTML UTF-8 encoding.")
-    # parser.add_argument('-v', '--verbose', type=int, choices=range(4), default=0, help="Output verbosity.")
+    parser.add_argument('-o', '--output', type=str, action="store", help="Output file path. Ensures HTML UTF-8 encoding.")
+    parser.add_argument('-w', '--warn', action="store_true", help="Show warnings.")
     # parser.add_argument("--html", action="store_true", help="Ensures HTML output.")
     # parser.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--lex", action="store_true", help=argparse.SUPPRESS)
     # parser.add_argument("--tree", action="store_true", help=argparse.SUPPRESS)
 
+    parser.set_defaults(func=None)
+
     ## Parse Arguments
     args = parser.parse_args()
 
-    pine = Pine(args.source)
+    if args.func is not None:
+        exit(args.func(args))
 
     if args.lex:
-        TOKENS = list(pine.tokens())
-        print(f"Total: {len(TOKENS)} tokens.")
-        print("\n".join(f"{k: 3d}. {t}" for k, t in enumerate(TOKENS, 1)))
+        stdout[0] << Pine.tokens(args.source)
+        exit(0)
+
+    pine = Pine.parse(args.source)
+
+    if args.warn:
+        Stream.set_lvl(1)
     else:
-        tree = pine.parse()
-        if tree is not None:
-            print(tree.html)
-        else:
-            stderr[0] << "No Output Generated."
-        
+        Stream.set_lvl(0)
+
+    if args.output is None:
+        stdout[0] << pine.html
+    else:
+        output_path = Path(args.output).absolute()
+
+        with output_path.open(mode='w', encoding='utf8') as file:
+            file.write(pine.html)
+
+    exit(0)

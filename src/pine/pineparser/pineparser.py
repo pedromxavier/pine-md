@@ -1,70 +1,49 @@
 """
 """
 ## Standard Library
-import re
-import sys
 from pathlib import Path
 
 
 ## Third-Party
-from ply import yacc
-from cstream import Stream, stderr
+from cstream import stdwar
 import pyduktape
 
 ## Local
-from ..pinelib import Source
-from ..items import mdType, mdTag, mdDocument, mdBlock, mdLoader
-from ..items import mdHeader, mdText, mdLink, mdSLink
-from ..items import mdStrike, mdCode, mdBold, mdItalic
-from ..items import mdUList, mdOList, mdListItem
 from .pinelexer import PineLexer
 from .parser import Parser
-
+from ..pinelib import Source
+from ..items import mdType, mdDocument, mdTag
+from ..items import mdUList, mdOList, mdListItem
+from ..items import mdJavascript, mdPre, mdCode
+from .mdparser import mdParser
 
 class PineParser(Parser):
 
-    DEFAULT_DIV = {'name': 'div', 'id': None, 'class': []}
+    tabmodule = 'pinetab'
 
-    precedence = [
-        
-        ("left", "ULIST", "OLIST"),
-        ("left", "INDENT"),
-        ("left", "LPAR", "RPAR", "LINK", "SLINK", "LOADER"),
-        ("left", "WORD", "SPACE", "HREF"),
-        ("left", "AST", "UNDER", "TILDE", "TICK", "LBRA", "RBRA"),
-        
-    ]
+    DEFAULT_DIV = {'name': 'div', 'id': None, 'class': []}
 
     # These lines are needed in subclasses
     _Lexer = PineLexer
     tokens = PineLexer.tokens
 
+    __js__ = None
+
     def __init__(self, source: Source):
         Parser.__init__(self, source)
-        self.js_context = None
-
         self.list_buffer = None
         self.list_stack = []
+        self.line_break = False
 
-    def include(self, path: str, *, lineno: int = 0) -> mdType:
-        """Includes content rendered from another file."""
-        path = Path(path)
-        if not path.exists() or not path.is_file():
-            print(f"in line {lineno} WARNING: File '{path}' not found.")
-            return None
-        else:  ## Not Implemented
-            with open(path, "r", encoding="utf-8") as file:
-                subparser = self.__class__(file.read())
-                return subparser.parse()
+    @classmethod
+    def _add_js_context(cls, js_context):
+        cls.__js__ = js_context
 
-    def javascript(self, code: str) -> str:
-        if self.js_context is None:
-            self.js_context = pyduktape.DuktapeContext()
-        output = self.js_context.eval_js(code)
-        if output:
-            return str(output)
-        else:
-            return None
+    @property
+    def js_context(self):
+        if self.__js__ is None:
+            self._add_js_context(pyduktape.DuktapeContext())
+        return self.__js__
 
     def list_pull(self):
         """"""
@@ -134,192 +113,94 @@ class PineParser(Parser):
 
     ## ------- YACC -------
     def p_start(self, p):
-        """start : blocklist"""
-        self.retrieve(mdDocument(self.list_pull(), *p[1]))
+        """ start : blocklist"""
+        self.retrieve(mdDocument(*p[1]))
 
     def p_blocklist(self, p):
-        """blocklist : blocklist ENDL block
-                     | block
+        """ blocklist : blocklist newline block
+                      | block
         """
         if len(p) == 4:
-            p[0] = [*p[1], *p[3]]
-        else:
+            if p[3] is not None:
+                p[1].append(p[3])
             p[0] = p[1]
+        else:
+            if p[1] is not None:
+                p[0] = [p[1]]
+            else:
+                p[0] = []
 
-    def p_block(self, p):
-        """ block : div
-                  | header
-                  | mdline
-                  | codeblock
+    def p_newline(self, p):
+        """ newline : ENDL
+                    | BREAK
         """
-        p[0] = [self.list_pull(), p[1]]
+        p[0] = p[1]
+
+    def p_block_div(self, p):
+        """ block : div 
+        """
+        p[0] = p[1]
 
     def p_block_list(self, p):
         """ block : listitem """
-        p[0] = [self.list_push(*p[1])]
+        p[0] = p[1]
 
     def p_listitem(self, p):
-        """ listitem : INDENT listtoken space markdown"""
-        p[0] = (p[1], p[2], mdText(*p[4]))
-
-    def p_listtoken(self, p):
-        """ listtoken : OLIST
-                      | ULIST
+        """ listitem : OLIST MARKDOWN
+                     | ULIST MARKDOWN
         """
-        p[0] = p[1]
-
-    def p_header(self, p):
-        """ header : INDENT HEADING space markdown
-        """
-        Heading = mdHeader.new(p[2])
-        p[0] =  Heading(*p[4])
-
-    def p_markdown_line(self, p):
-        """ mdline : INDENT markdown
-        """
-        p[0] = mdText(*p[2])
-
-    # :: LISTS ::
-
-    def p_markdown(self, p):
-        """markdown : markdown fragment
-                    | fragment
-        """
-        if len(p) == 3:
-            if p[2] is not None:
-                p[1].append(p[2])
-            p[0] = p[1]
-        else:
-            p[0] = [p[1]]
-
-    def p_fragment(self, p):
-        """ fragment : loader
-                     | javascript
-                     | WORD
-                     | SPACE
-                     | italic
-                     | bold
-                     | strike
-                     | code
-        """
-        p[0] = p[1]
-
-    def p_loader(self, p):
-        """ loader : LBRA HREF LOADER """
-        p[0] = mdLoader(p[2], p[3])
-
-    def p_loader_ref(self, p):
-        """ loader : LBRA HREF RBRA """
-        p[0] = ("loader-ref", p[2])
-
-    def p_loader_link(self, p):
-        """ loader : LBRA HREF LINK markdown RPAR"""
-        p[0] = mdLink(p[2], p[5])
-
-    def p_loader_slink(self, p):
-        """ loader : LBRA HREF SLINK markdown RPAR"""
-        p[0] = mdSLink(p[2], p[5])
-
-    def p_format_italic(self, p):
-        """ italic : UNDER markdown UNDER """
-        p[0] = mdItalic(*p[2])
-
-    def p_format_bold(self, p):
-        """ bold : AST markdown AST """
-        p[0] = mdBold(*p[2])
-
-    def p_format_strike(self, p):
-        """ strike : TILDE markdown TILDE """
-        p[0] = mdStrike(*p[2])
-
-    def p_format_code(self, p):
-        """ code : TICK markdown TICK """
-        p[0] = mdCode(*p[2])
-
-    # :: JAVASCRIPT ::
-    def p_javascript_code(self, p):
-        """ javascript : JSPUSH JSCODE JSPULL """
-        p[0] = self.javascript(p[2])
-
-    def p_javascript_blank(self, p):
-        """ javascript : JSPUSH JSPULL """
-        p[0] = None
-
-    # :: JAVASCRIPT ::
-    def p_codeblock(self, p):
-        """ codeblock : CBPUSH CBCODE CBPULL
-        """
-        p[0] = p[2]
-
-    def p_codeblock_empty(self, p):
-        """ codeblock : CBPUSH CBPULL
-        """
-        p[0] = None
+        p[0] = (p[1], p[2])
 
     def p_div(self, p):
-        """ div : INDENT DIVPUSH divheader ENDL blocklist ENDL INDENT DIVPULL
-        """
-        Tag = mdTag.new(p[3]['name'])
-        element = Tag(*p[5])
-        element.update({'id' : p[3]['id'], 'class': " ".join(p[3]['class'])})
-        p[0] = element
+        """ div : DIVPUSH divheader newline blocklist DIVPULL """
+        Tag = mdTag.new(p[2]['name'])
+        div = Tag(*p[4])
+        div.update({'class': p[2]['class'], 'id': p[2]['id']})
+        p[0] =  div
 
     def p_divheader(self, p):
-        """ divheader : space divkeys """
-        keys = self.DEFAULT_DIV.copy()
-        keys.update(p[2])
-        p[0] = keys
+        """ divheader : divheader divitem
+                      | divitem
+        """
+        if len(p) == 3:
+            p[1].update(p[2])
+            p[0] = p[1]
+        else:
+            p[0] = {'name': 'div', 'class': '', 'id': ''}
+            p[0].update(p[1])
 
     def p_divheader_empty(self, p):
         """ divheader : """
-        p[0] = self.DEFAULT_DIV.copy()
+        p[0] = {'name': 'div', 'class': '', 'id': ''}
 
-    def p_divkeys(self, p):
-        """divkeys : divkeys space divkey
-                   | divkey
+    def p_divitem_divname(self, p):
+        """ divitem : DIVNAME """
+        p[0] = {'name' : p[1]}
+
+    def p_divitem_divid(self, p):
+        """ divitem : DIVID """
+        p[0] = {'id' : p[1]}
+
+    def p_divitem_divclass(self, p):
+        """ divitem : DIVCLASS """
+        p[0] = {'class' : p[1]}
+
+    def p_block_markdown(self, p):
+        """ block : MARKDOWN
         """
-        if len(p) == 4:
-            keys = p[1]
-            key, val = p[3]
-        else:
-            keys = {}
-            key, val = p[1]
-        
-        if key == 'id' or key == 'name':
-            keys[key] = val
-        elif key == 'class':
-            if key in keys:
-                keys[key].append(val)
-            else:
-                keys[key] = [val]
-        else:
-            raise ValueError('key not in {id, name, class}')
-        
-        p[0] = keys
+        p[0] = mdParser.parse(Source(buffer=p[1], offset=p.lexpos(1)))
 
-    def p_divkey_name(self, p):
-        """divkey : DIVNAME"""
-        p[0] = ('name', p[1])
-        
-    def p_divkey_id(self, p):
-        """divkey : DIVID"""
-        p[0] = ('id', p[1])
+    def p_block_javascript(self, p):
+        """ block : JAVASCRIPT"""
+        p[0] = mdJavascript(p[1])
 
-    def p_divkey_class(self, p):
-        """divkey : DIVCLASS"""
-        p[0] = ('class', p[1])
+    def p_block_codeblock(self, p):
+        """ block : CODEBLOCK"""
+        lang, code = p[1]
+        code = mdCode(mdType.html_escape(code))
+        code['class'] = f'language-{lang}'
+        p[0] = mdPre(code)
 
     def p_block_empty(self, p):
-        """ block : INDENT
-                  |
-        """
-        p[0] = []
-
-    def p_space(self, p):
-        """ space : SPACE
-                  | 
-        """
-        if len(p) == 2:
-            p[0] = p[1]
-        else:
-            p[0] = 0
+        """ block : """
+        p[0] = None

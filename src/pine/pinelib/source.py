@@ -4,24 +4,36 @@ import itertools as it
 from pathlib import Path
 from functools import wraps
 
-
-class EOFType(object):
+class TrackType(object):
     def __init__(self, lexinfo: dict):
         ## Add tracking information
-        self.lineno = lexinfo["lineno"]
-        self.lexpos = lexinfo["lexpos"]
-        self.chrpos = lexinfo["chrpos"]
-        self.source = lexinfo["source"]
-
         self.lexinfo = lexinfo
 
+    @property
+    def lineno(self):
+        return self.lexinfo['lineno']
+
+    @property
+    def lexpos(self):
+        return self.lexinfo['lexpos']
+
+    @property
+    def chrpos(self):
+        return self.lexinfo['chrpos']
+
+    @property
+    def source(self):
+        return self.lexinfo['source']
+
+class EOFType(TrackType):
+    pass
 
 class Source(str):
     """This source code object aids the tracking of tokens in order to
     indicate error position on exception handling.
     """
 
-    def __new__(cls, *, fname: str = None, buffer: str = None):
+    def __new__(cls, *, fname: str = None, buffer: str = None, offset: int = 0):
         """This object is a string itself with additional features for
         position tracking.
         """
@@ -52,11 +64,12 @@ class Source(str):
         else:
             raise ValueError("Either 'fname' or 'buffer' must be provided.")
 
-    def __init__(self, *, fname: str = None, buffer: str = None):
+    def __init__(self, *, fname: str = None, buffer: str = None, offset: int = 0):
         """Separates the source code in multiple lines. A blank first line is added for the indexing to start at 1 instead of 0. `self.table` keeps track of the (cumulative) character count."""
         self.fpath = Path(fname).absolute() if (fname is not None) else "<string>"
         self.lines = [""] + self.split("\n")
         self.table = list(it.accumulate([(len(line) + 1) for line in self.lines]))
+        self.offset = offset
 
     def __repr__(self):
         return f"Source @ '{self.fpath}'"
@@ -65,10 +78,12 @@ class Source(str):
         """Truth-value for emptiness checking."""
         return self.__len__() > 0
 
-    def lexchr(self, lexpos: int) -> dict:
-        """Retrieves lexinfo dictionary from chrpos."""
+    def _getlex(self, lexpos: int) -> dict:
+        """Retrieves lexinfo dictionary from lexpos."""
+        lexpos = lexpos + self.offset
+
         lineno = 1
-        while lineno < len(self.table) and lexpos < self.table[lineno]:
+        while lineno < len(self.table) and lexpos > self.table[lineno]:
             lineno += 1
 
         if lineno == len(self.table):
@@ -80,7 +95,9 @@ class Source(str):
                 'chrpos': lexpos - self.table[lineno - 1] + 1,
                 'source': self,
             }
-
+    
+    def getlex(self, lexpos: int) -> TrackType:
+        return TrackType(self._getlex(lexpos))
 
     @property
     def eof(self):
@@ -134,11 +151,5 @@ def track(from_: object, to_: object, out: bool = False):
         raise AttributeError(
             "`from_` is not trackable, i.e. has no attribute `lexinfo`."
         )
-
-
-@trackable
-class TrackType(object):
-    pass
-
 
 __all__ = ["Source", "track", "trackable", "TrackType"]

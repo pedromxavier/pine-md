@@ -20,6 +20,8 @@ from ..pinelib import Source
 
 class Parser(object):
 
+    tabmodule = 'parsetab'
+
     TAB = '\t'
 
     # precedence = (
@@ -32,12 +34,17 @@ class Parser(object):
     def __init__(self, source: Source):
         self.source = source
         self.lexer = self._Lexer(self.source)
-        self.parser = yacc.yacc(module=self, debug=True)
+        self.parser = yacc.yacc(module=self, tabmodule=self.tabmodule)
 
         # --- output ---
         self.__output = None
 
-    def parse(self) -> list:
+    @classmethod
+    def parse(cls, source: Source) -> object:
+        parser = cls(source)
+        return parser._parse()
+
+    def _parse(self) -> object:
         try:
             self.parser.parse(self.source, lexer=self.lexer.lexer)
             return self.__output
@@ -45,16 +52,18 @@ class Parser(object):
             self.__output = None
             stderr << error
         
-    def retrieve(self, output: list):
-        self.__output: list = output
+    def retrieve(self, output: object):
+        self.__output: object = output
 
     def syntax_error(self, msg: str, target=None, code: int = 1):
         raise PineSyntaxError(msg=msg, target=target, code=code)
 
     ## ------ YACC ------
     def p_error(self, p):
-        target = self.source.lexchr(p.lexpos)
         if p is None:
-            self.syntax_error(f"Unexpected EOF. [state:{self.parser.state}]")
+            self.syntax_error(f"Unexpected EOF. {self.state_info()}", target=self.source.eof)
         else:
-            self.syntax_error(f"Problem at {p} ({p.type}) [state:{self.parser.state}]", target=target)
+            self.syntax_error(f"{p.value!r} ({p.type}) {self.state_info()}", target=self.source.getlex(p.lexpos))
+
+    def state_info(self) -> str:
+        return f"[parser: {self.parser.state} | lexer : {self.lexer.lexer.current_state()}]"
