@@ -24,6 +24,7 @@ class PineLexer(Lexer):
         "DIVNAME",
         "DIVID",
         "DIVCLASS",
+        "DIVLANG",
         "DIVPULL",
         "OLIST",
         "ULIST",
@@ -91,16 +92,21 @@ class PineLexer(Lexer):
         self.lexer.begin("div")
         return t
 
-    @regex(r"[a-zA-Z][a-zA-Z0-9\-]+")
+    @regex(r"[a-zA-Z][a-zA-Z0-9\-]*")
     def t_div_DIVNAME(self, t):
         return t
 
-    @regex(r"\.[a-zA-Z][a-zA-Z0-9\-]+")
+    @regex(r"\.[a-zA-Z][a-zA-Z0-9\-]*")
     def t_div_DIVCLASS(self, t):
         t.value = t.value[1:]
         return t
 
-    @regex(r"\#[a-zA-Z][a-zA-Z0-9\-]+")
+    @regex(r"\&[a-zA-Z][a-zA-Z0-9\-]*")
+    def t_div_DIVLANG(self, t):
+        t.value = t.value[1:]
+        return t
+
+    @regex(r"\#[a-zA-Z][a-zA-Z0-9\-]*")
     def t_div_DIVID(self, t):
         t.value = t.value[1:]
         return t

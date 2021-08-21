@@ -1,5 +1,6 @@
 """"""
 
+from functools import total_ordering
 from ..pinelib import TrackType
 
 
@@ -17,12 +18,7 @@ class PineError(Exception):
             if self.target.source is None:
                 return f"{self.__class__.__doc__}: {self.msg}\n"
             else:
-                return (
-                    f"In '{self.target.source.fpath}' at line {self.target.lineno}:\n"
-                    f"{self.target.source.lines[self.target.lineno]}\n"
-                    f"{' ' * self.target.chrpos}^\n"
-                    f"{self.__class__.__doc__}: {self.msg}\n"
-                )
+                return self.target.source.error(self.msg, name=self.__doc__)
         else:
             return self.msg
 

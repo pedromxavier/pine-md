@@ -46,7 +46,7 @@ class Parser(object):
 
     def _parse(self) -> object:
         try:
-            self.parser.parse(self.source, lexer=self.lexer.lexer)
+            self.parser.parse(str(self.source), lexer=self.lexer.lexer)
             return self.__output
         except PineError as error:
             self.__output = None

@@ -54,7 +54,7 @@ class mdTextTag(mdText):
 
     @property
     def html(self) -> str:
-        return f"<{self.tag}{self.keys}>{self.text}</{self.tag}>"
+        return f"<{self.tag}{self.options}>{self.text}</{self.tag}>"
 
 # Simple Text Elements
 class mdPar(mdTextTag):

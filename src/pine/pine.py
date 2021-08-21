@@ -8,7 +8,7 @@ from cstream import stderr, stdlog, stdwar, stdout
 # Local
 from .pinelib import Source
 from .pineparser import PineParser, PineLexer
-from .items import mdDocument, mdType, mdNull
+from .items import mdDocument, mdNull
 
 class Pine(object):
     """
@@ -35,14 +35,14 @@ class Pine(object):
         doc = PineParser.parse(Source(fname=path))
 
         if doc is None:
-            return mdDocument()
+            return mdDocument(path=path)
         else:
             return doc
 
     @classmethod
     def tokens(cls, fname: str) -> str:
-        path = Path(fname).absolute()
-
+        path = Path(fname).resolve()
+        
         if not path.exists() or not path.is_file():
             stderr[0] << f"Error: Invalid source file path '{path}'."
             return []
@@ -50,6 +50,3 @@ class Pine(object):
         lexer = PineLexer(Source(fname=path))
         
         return "\n".join(f"{i: 3d}. {t}" for i, t in enumerate(lexer.tokenize(), start=1))
-
-# Very Important
-mdType._add_pine(Pine)

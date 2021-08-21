@@ -27,7 +27,7 @@ class Lexer(object):
         self.lexer = lex.lex(module=self, reflags=self.RE_FLAGS)
 
     def tokenize(self) -> list:
-        self.lexer.input(self.source)
+        self.lexer.input(str(self.source))
         tokens = []
         while True:
             tok = self.lexer.token()

@@ -6,52 +6,70 @@ from pathlib import Path
 # Third-Party
 import pyduktape
 from cstream import stdwar
+from ..pinelib import Stack, Source
 
-from ..pinelib import trackable
-
-
-@trackable
 class mdType(object, metaclass=abc.ABCMeta):
     """"""
 
     TAB = "\t"
 
+    __lang__ = None
+    lang_set = set()
+
+    path_stack = Stack()
+
+    __indent__ = 0
     __inline__ = False
+    
+    # -*- Basic Interface -*-
+    def __init__(self, *child: tuple, path: str = None):
+        self._keys = {}
+        self.child = [c for c in child if c]
 
-    __data__ = {"stack": 0}
+        self.lexinfo = {
+            'lexpos': 0,
+            'chrpos': 0,
+            'lineno': 0,
+            'source': None
+        }
 
-    __pine__ = None
-
-    @classmethod
-    def _add_pine(cls, pine: type):
-        cls.__pine__ = pine
+        self.__path__ = Path(path).resolve(strict=True) if path is not None else None
 
     @property
-    def pine(self) -> type:
-        if self.__pine__ is None:
-            raise UnboundLocalError("Call to 'mdType._add_pine' is missing.")
-        else:
-            return self.__pine__
+    def lineno(self) -> int:
+        return self.lexinfo['lineno']
 
-    def __init__(self, *child: tuple):
-        self._data = {"id": "", "class": ""}
-        self.child = [c for c in child if c]
+    @property
+    def lexpos(self) -> int:
+        return self.lexinfo['lexpos']
+
+    @property
+    def chrpos(self) -> int:
+        return self.lexinfo['chrpos']
+
+    @property
+    def source(self) -> Source:
+        return self.lexinfo['source']
+
+    @property
+    def keys(self) -> dict:
+        return self._keys
 
     def __iter__(self):
         return iter(c for c in self.child if c)
 
     def __getitem__(self, key: str):
-        return self._data[key]
+        return self.keys[key]
 
     def __setitem__(self, key: str, value: object):
-        self._data[key] = value
+        self.keys[key] = value
 
-    def append(self, c: object):    
+    def append(self, c: object):
         self.child.append(c)
 
     def update(self, d: dict):
         for key, value in d.items():
-            self._data[key] = value
+            self.keys[key] = value
 
     def __bool__(self) -> bool:
         return True
@@ -62,43 +80,101 @@ class mdType(object, metaclass=abc.ABCMeta):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({', '.join(map(repr, self.child))})"
 
+    # -*- Language -*-
+    @classmethod
+    def add_lang(cls, lang: str) -> str:
+        if lang is not None:
+            cls.lang_set.add(lang)
+        return lang
+
+    @classmethod
+    def set_lang(cls, lang: str) -> str:
+        cls.__lang__ = lang
+
+    @classmethod
+    def get_lang(cls) -> str:
+        return cls.__lang__
+
+    # -*- Indent -*-
     @property
     def pad(self):
-        return self.TAB * self.__data__["stack"]
+        return self.TAB * self.__indent__
+
+    @classmethod
+    def _reset(self) -> str:
+        self.__indent__ += 1
+
+    @classmethod
+    def _push(self) -> str:
+        self.__indent__ += 1
+
+    @classmethod
+    def _pop(self) -> str:
+        self.__indent__ -= 1
 
     @property
     def reset(self):
-        self.__class__.__data__["stack"] = 0
+        self._reset()
         return str()
 
     @property
     def push(self) -> str:
-        self.__class__.__data__["stack"] += 1
+        self._push()
         return str()
 
     @property
     def pop(self) -> str:
-        self.__class__.__data__["stack"] -= 1
+        self._pop()
         return str()
 
-    def get_key(self, key: str) -> str:
+    @classmethod
+    def _inline(cls) -> bool:
+        return bool(cls.__inline__)
+
+    @property
+    def inline(self) -> bool:
+        return self._inline()
+
+    # -*- Tag options -*-
+    def get_option(self, key: str) -> str:
         return f' {key}="{self[key]}"' if bool(self[key]) else str()
 
-    @property
-    def keys(self) -> str:
-        return "".join(self.get_key(key) for key in self._data)
 
     @property
-    def inline(self):
-        return self.__class__.__inline__
+    def options(self) -> str:
+        return "".join(self.get_option(key) for key in self.keys)
 
+    # -*- Path Properties -*-
+    @property
+    def path(self) -> Path:
+        return self.path_stack.top
+
+    # -*- Render -*-
     @abc.abstractproperty
     def html(self) -> str:
         pass
 
+    @classmethod
+    def html_format(cls, x: object):
+        if isinstance(x, mdType):
+            return x.html
+        elif x:
+            return str(x)
+        else:
+            return str()
+
     @abc.abstractproperty
     def tex(self) -> str:
         pass
+
+    @classmethod
+    def tex_format(cls, x: object):
+        if isinstance(x, mdType):
+            return x.tex
+        elif x:
+            return str(x)
+        else:
+            return str()
 
     def tex_usepackage(self, package: str):
         raise NotImplementedError
@@ -107,12 +183,9 @@ class mdType(object, metaclass=abc.ABCMeta):
     def html_escape(cls, text: str, quote: bool = False):
         return html.escape(text, quote=quote)
 
-    @property
-    def tree(self) -> list:
-        if not self.child:
-            return (self, None)
-        else:
-            return (self, [c.tree for c in self.child if isinstance(c, mdType)])
+    @classmethod
+    def tex_escape(cls, text: str, quote: bool = False):
+        raise NotImplementedError
 
 class mdNull(mdType):
     __ref__ = None
@@ -138,11 +211,23 @@ class mdNull(mdType):
     def tex(self) -> str:
         return str()
 
+
 class mdDocument(mdType):
+
+    def __init__(self, *child: tuple, path: str = None):
+        mdType.__init__(self, *child)
+
+        if path is None:
+            self.file_path = None
+        else:
+            self.file_path = Path(str(path)).resolve(strict=True)
 
     @property
     def html(self):
-        return f"\n{self.pad}".join(e for e in (c.html if isinstance(c, mdType) else str(c) for c in self) if e)
+        self.path_stack.push(self.file_path)
+        html = f"\n{self.pad}".join(self.html_format(c) for c in self)
+        self.path_stack.pop()
+        return html
 
     @property
     def tex(self):
@@ -155,6 +240,7 @@ class mdDocument(mdType):
     @property
     def tex_document(self):
         raise NotImplementedError
+
 
 class mdJavascript(mdType):
 
@@ -172,7 +258,7 @@ class mdJavascript(mdType):
 
     @property
     def code(self) -> str:
-        return '\n'.join(map(str, self.child))
+        return "\n".join(map(str, self.child))
 
     @property
     def javascript(self) -> str:
@@ -194,16 +280,3 @@ class mdJavascript(mdType):
     @property
     def tex(self) -> str:
         return self.javascript
-
-class mdPath(mdType):
-
-    def __init__(self, path: str, root: str):
-        self.path = Path(path).relative_to(Path(root))
-
-    @property
-    def html(self) -> str:
-        return str(self.path)
-
-    @property
-    def tex(self) -> str:
-        return str(self.path)

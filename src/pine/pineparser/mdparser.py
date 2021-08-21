@@ -4,7 +4,7 @@ from pine.items.html import mdHeader, mdLoader
 from .parser import Parser
 from .mdlexer import mdLexer
 from ..items import mdItalic, mdBold, mdStrike, mdCode, mdText
-from ..items import mdLink, mdSLink, mdLoader, mdHref
+from ..items import mdLink, mdSLink, mdLoader, mdHref, mdPath
 
 class mdParser(Parser):
 
@@ -28,8 +28,7 @@ class mdParser(Parser):
 
     def p_heading(self, p):
         """ heading : HEADING markdown """
-        Heading = mdHeader.new(p[1])
-        p[0] = Heading(p[2])
+        p[0] = mdHeader(p[2], heading=p[1])
 
     def p_markdown(self, p):
         """ markdown : markdown fragment
@@ -66,15 +65,15 @@ class mdParser(Parser):
 
     def p_link(self, p):
         """ link : LBRA markdown LINK markdown RPAR """
-        p[0] = mdLink(p[2], p[4])
+        p[0] = mdLink(mdPath(p[2], path=self.source.fpath.parent), p[4])
 
     def p_slink(self, p):
         """ slink : LBRA markdown SLINK markdown RPAR """
-        p[0] = mdSLink(p[2], p[4])
+        p[0] = mdSLink(mdPath(p[2], path=self.source.fpath.parent), p[4])
 
     def p_content(self, p):
         """ content : LBRA markdown LOADER """
-        p[0] = mdLoader(str(p[2]), p[3])
+        p[0] = mdLoader(mdPath(p[2], path=self.source.fpath.parent), p[3])
 
     def p_format_italic(self, p):
         """ italic : UNDER markdown UNDER """

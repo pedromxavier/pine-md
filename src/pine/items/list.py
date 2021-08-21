@@ -53,24 +53,5 @@ class mdListItem(mdTag):
 
     __inline__ = True
 
-    @property
-    def tag(self) -> str:
-        return "li"
-
-class mdUListItem(mdTag):
-    """"""
-
-    __inline__ = True
-
-    @property
-    def tag(self) -> str:
-        return "li"
-
-class mdOListItem(mdTag):
-    """"""
-
-    __inline__ = True
-
-    @property
-    def tag(self) -> str:
-        return "li"
+    def __init__(self, *child: tuple):
+        mdTag.__init__(self, *child, name='li')

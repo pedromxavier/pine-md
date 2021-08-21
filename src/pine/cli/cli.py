@@ -6,6 +6,7 @@ from pathlib import Path
 from cstream import Stream, stdout, stderr
 
 from .banner import PINE_BANNER
+from ..items import mdType
 from ..pine import Pine
 from ..error import PineError
 
@@ -32,15 +33,21 @@ def main():
     parser.add_argument("source", type=str, action="store", help="Source file.")
     parser.add_argument('-o', '--output', type=str, action="store", help="Output file path. Ensures HTML UTF-8 encoding.")
     parser.add_argument('-w', '--warn', action="store_true", help="Show warnings.")
-    # parser.add_argument("--html", action="store_true", help="Ensures HTML output.")
+    parser.add_argument("--html", action="store_true", help="Ensures HTML output.")
     # parser.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--lex", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--tex", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument('-l', '--lang', type=str, action="store", help="Language.")
     # parser.add_argument("--tree", action="store_true", help=argparse.SUPPRESS)
 
     parser.set_defaults(func=None)
 
     ## Parse Arguments
     args = parser.parse_args()
+
+    if args.lang is not None:
+        print(f'lang = {args.lang}')
+        mdType.set_lang(args.lang)
 
     if args.func is not None:
         exit(args.func(args))
@@ -56,12 +63,19 @@ def main():
     else:
         Stream.set_lvl(0)
 
+    if args.html:
+        output = pine.html
+    elif args.tex:
+        output = pine.tex
+    else:
+        output = repr(pine)
+
     if args.output is None:
-        stdout[0] << pine.html
+        stdout[0] << output
     else:
         output_path = Path(args.output).absolute()
 
         with output_path.open(mode='w', encoding='utf8') as file:
-            file.write(pine.html)
+            file.write(output)
 
     exit(0)

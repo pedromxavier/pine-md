@@ -1,56 +1,59 @@
 import abc
-
 from .base import mdType
 
 
 class mdTag(mdType):
     """"""
 
-    __tags__ = {}
-
     def __bool__(self) -> bool:
         return True
 
-    @classmethod
-    def new(cls, tag: str) -> type:
-        if tag not in cls.__tags__:
-            class mdNewTag(cls):
-                @property
-                def tag(self):
-                    return tag
-            cls.__tags__[tag] = mdNewTag
-        return cls.__tags__[tag]
+    def __init__(
+        self,
+        *child,
+        name: str = "div",
+        lang: str = None,
+        ID: str = None,
+        CLASS: str = None,
+    ):
+        mdType.__init__(self, *child)
+        self.name = name
+        self.lang = self.add_lang(lang)
+        self._keys.update({'id': ID, 'class': CLASS})
 
-    @abc.abstractproperty
-    def tag(self):
-        pass
+    @property
+    def keys(self) -> dict:
+        return {**self._keys, 'lang': self.lang}
 
     @property
     def html(self) -> str:
-        if not self.inline:
-            return "\n".join(
-                [
-                    f"<{self.tag}{self.keys}>{self.push}",
-                    *[f"{self.pad}{c.html if isinstance(c, mdType) else str(c)}" for c in self],
-                    f"{self.pop}{self.pad}</{self.tag}>",
-                ]
-            )
+        lang = self.get_lang()
+        if self.lang is None or lang is None or lang == self.lang:
+            if not self.inline:
+                return "\n".join(
+                    [
+                        f"<{self.name}{self.options}>{self.push}",
+                        *[f"{self.pad}{self.html_format(c)}" for c in self],
+                        f"{self.pop}{self.pad}</{self.name}>",
+                    ]
+                )
+            else:
+                return "".join(
+                    [
+                        f"<{self.name}{self.options}>",
+                        *[f"{self.html_format(c)}" for c in self],
+                        f"</{self.name}>",
+                    ]
+                )
         else:
-            return "".join(
-                [
-                    f"<{self.tag}{self.keys}>",
-                    *[f"{c.html if isinstance(c, mdType) else str(c)}" for c in self],
-                    f"</{self.tag}>",
-                ]
-            )
+            return ""
 
-        
     @property
     def tex(self) -> str:
         return "\n".join(
             [
-                f"\\begin{{{self.tag}}}[{self.keys}]{self.push}",
-                *[f"{self.pad}{c.html if isinstance(c, mdType) else str(c)}" for c in self],
-                f"{self.pop}{self.pad}\\end{{{self.tag}}}",
+                f"\\begin{{{self.name}}}[{self.options}]{self.push}",
+                *[f"{self.pad}{self.tex_format(c)}" for c in self],
+                f"{self.pop}{self.pad}\\end{{{self.name}}}",
             ]
         )

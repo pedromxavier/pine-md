@@ -38,3 +38,7 @@ h1:before, h2:before, h3:before {
     text-align: center;
     font-family: Arial, Helvetica, sans-serif;
 }
+
+.profile {
+    width: 200px;
+}
